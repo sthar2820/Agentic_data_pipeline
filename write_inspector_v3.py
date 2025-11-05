@@ -1,4 +1,7 @@
-# filepath: /Users/roh/Documents/GitHub/Agentic_data_pipeline/agents/inspector/inspector_agent.py
+#!/usr/bin/env python3
+"""Write the improved InspectorAgent v3 with agentic capabilities."""
+
+INSPECTOR_CONTENT = '''# filepath: /Users/roh/Documents/GitHub/Agentic_data_pipeline/agents/inspector/inspector_agent.py
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -95,20 +98,17 @@ class InspectorAgent:
         )
         
         report = DataQualityReport(
-            overall_quality=overall_quality,
+            timestamp=datetime.now(),
+            dataset_name=self.config["dataset_name"],
+            row_count=data.shape[0],
+            column_count=data.shape[1],
             missing_values=missing_values,
-            data_types=data_types,
             duplicate_count=duplicate_count,
             outlier_count=outlier_count,
-            column_stats=column_stats,
+            data_types=data_types,
+            column_statistics=column_stats,
             recommendations=recommendations,
-            timestamp=datetime.now().isoformat(),
-            cardinality_analysis=cardinality,
-            skewness_analysis=skewness,
-            pattern_analysis=patterns,
-            consistency_issues=consistency,
-            column_quality_scores=col_quality,
-            outlier_details=outlier_details,
+            overall_quality=overall_quality,
             proposed_actions=proposed_actions
         )
         
@@ -227,8 +227,8 @@ class InspectorAgent:
                 "top_patterns": {k: int(v) for k, v in top_patterns.items()},
                 "contains_email": bool(sample.str.contains("@", regex=False).any()),
                 "contains_url": bool(sample.str.contains("http", regex=False).any()),
-                "contains_phone": bool(sample.str.match(r".*\d{3}[-.]?\d{3}[-.]?\d{4}.*").any()),
-                "contains_currency": bool(sample.str.match(r"^\$?[\d,]+\.?\d*$").any()),
+                "contains_phone": bool(sample.str.match(r".*\\d{3}[-.]?\\d{3}[-.]?\\d{4}.*").any()),
+                "contains_currency": bool(sample.str.match(r"^\\$?[\\d,]+\\.?\\d*$").any()),
                 "is_date_like": self._is_date_like(sample)
             }
         return result
@@ -251,10 +251,10 @@ class InspectorAgent:
                 continue
             
             issues = {
-                "numeric_like": int(sample.str.match(r"^\d+\.?\d*$").sum()),
-                "has_leading_ws": int(sample.str.match(r"^\s+.*").sum()),
-                "has_trailing_ws": int(sample.str.match(r".*\s+$").sum()),
-                "mixed_case": int(((sample != sample.str.lower()) & (sample != sample.str.upper())).sum())
+                "numeric_like": int(sample.str.match(r"^\\d+\\.?\\d*$").sum()),
+                "has_leading_ws": int(sample.str.match(r"^\\s+.*").sum()),
+                "has_trailing_ws": int(sample.str.match(r".*\\s+$").sum()),
+                "mixed_case": int((sample != sample.str.lower()) & (sample != sample.str.upper())).sum()
             }
             
             if any(issues.values()):
@@ -323,7 +323,7 @@ class InspectorAgent:
         # Cardinality
         constant_cols = [col for col, info in cardinality.items() if info["category"] == "constant"]
         if constant_cols:
-            recs.append(f"�� INFO: Consider dropping {len(constant_cols)} constant columns")
+            recs.append(f"💡 INFO: Consider dropping {len(constant_cols)} constant columns")
         
         # Low quality columns
         low_quality = [col for col, score in col_quality.items() if score < 0.5]
@@ -419,3 +419,10 @@ class InspectorAgent:
         save_json(proposed_actions, f"{base}_clean_plan.json")
         
         self.logger.info(f"Artifacts saved: {base}_*.json")
+'''
+
+if __name__ == "__main__":
+    output_path = "agents/inspector/inspector_agent.py"
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(INSPECTOR_CONTENT)
+    print(f"✅ Written {len(INSPECTOR_CONTENT)} characters to {output_path}")

@@ -36,6 +36,7 @@ class DataQualityReport:
     consistency_issues: Optional[Dict[str, List[str]]] = None
     column_quality_scores: Optional[Dict[str, float]] = None
     outlier_details: Optional[Dict[str, Dict[str, Any]]] = None
+    proposed_actions: Optional[List[Dict[str, Any]]] = None  # Agentic: machine-readable actions
 
 
 @dataclass

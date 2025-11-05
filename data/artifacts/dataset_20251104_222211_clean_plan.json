@@ -1,0 +1,40 @@
+[
+  {
+    "column": "goods-title-link--jump",
+    "action": "drop_column",
+    "reason": "missing>70%",
+    "priority": "high"
+  },
+  {
+    "column": "goods-title-link--jump href",
+    "action": "drop_column",
+    "reason": "missing>70%",
+    "priority": "high"
+  },
+  {
+    "column": "rank-title",
+    "action": "drop_column",
+    "reason": "missing>70%",
+    "priority": "high"
+  },
+  {
+    "column": "rank-sub",
+    "action": "drop_column",
+    "reason": "missing>70%",
+    "priority": "high"
+  },
+  {
+    "column": "discount",
+    "action": "impute",
+    "strategy": "advanced",
+    "reason": "missing=38.3%",
+    "priority": "medium"
+  },
+  {
+    "column": "selling_proposition",
+    "action": "impute",
+    "strategy": "advanced",
+    "reason": "missing=65.9%",
+    "priority": "medium"
+  }
+]
