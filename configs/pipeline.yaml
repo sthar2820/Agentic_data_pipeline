@@ -19,7 +19,7 @@ agents:
   refiner:
     name: "Data Refiner Agent"
     description: "Cleans and preprocesses data"
-    enabled: true
+    enabled: false  # DISABLED for Inspector testing
     config:
       handle_missing: "auto"  # auto, drop, fill, interpolate
       remove_duplicates: true
@@ -29,7 +29,7 @@ agents:
   insight:
     name: "Insight Agent"
     description: "Generates insights and visualizations"
-    enabled: true
+    enabled: false  # DISABLED for Inspector testing
     config:
       generate_plots: true
       correlation_analysis: true
