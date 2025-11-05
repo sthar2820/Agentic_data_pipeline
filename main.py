@@ -1,12 +1,4 @@
 #!/usr/bin/env python3
-"""
-Agentic Data Pipeline - Main Entry Point
-
-A sophisticated data processing pipeline with three intelligent agents:
-- Inspector Agent: Analyzes data quality and structure
-- Refiner Agent: Cleans and preprocesses data
-- Insight Agent: Generates insights and visualizations
-"""
 
 import argparse
 import os
@@ -80,7 +72,7 @@ Examples:
             print(f"Pipeline: {status['pipeline_name']} v{status['version']}")
             print(f"\nAgents:")
             for name, agent_info in status['agents'].items():
-                status_str = "✓ ENABLED" if agent_info['enabled'] else "✗ DISABLED"
+                status_str = "[ENABLED]" if agent_info['enabled'] else "[DISABLED]"
                 print(f"  {agent_info['name']}: {status_str}")
             print(f"\nData Paths:")
             for path_name, path_value in status['data_paths'].items():
@@ -133,9 +125,9 @@ Examples:
 
 def print_result(result, detailed=True):
     """Print pipeline execution result"""
-    status_emoji = "✓" if result.status.value == "completed" else "✗"
+    status_indicator = "[OK]" if result.status.value == "completed" else "[FAIL]"
     
-    print(f"Status: {status_emoji} {result.status.value.upper()}")
+    print(f"Status: {status_indicator} {result.status.value.upper()}")
     print(f"Execution time: {result.execution_time:.2f} seconds")
     
     if result.errors:

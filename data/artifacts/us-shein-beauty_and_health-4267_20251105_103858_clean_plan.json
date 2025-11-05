@@ -12,6 +12,19 @@
     "priority": "high"
   },
   {
+    "column": "selling_proposition",
+    "action": "impute",
+    "strategy": "advanced",
+    "reason": "missing=23.7%",
+    "priority": "medium"
+  },
+  {
+    "column": "color-count",
+    "action": "drop_column",
+    "reason": "missing>70%",
+    "priority": "high"
+  },
+  {
     "column": "rank-title",
     "action": "drop_column",
     "reason": "missing>70%",
@@ -22,19 +35,5 @@
     "action": "drop_column",
     "reason": "missing>70%",
     "priority": "high"
-  },
-  {
-    "column": "discount",
-    "action": "impute",
-    "strategy": "advanced",
-    "reason": "missing=38.3%",
-    "priority": "medium"
-  },
-  {
-    "column": "selling_proposition",
-    "action": "impute",
-    "strategy": "advanced",
-    "reason": "missing=65.9%",
-    "priority": "medium"
   }
 ]

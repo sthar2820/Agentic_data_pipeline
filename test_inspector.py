@@ -12,7 +12,7 @@ def test_inspector():
         config = yaml.safe_load(f)
     
     # Load data
-    data = pd.read_csv('data/raw/us-shein-appliances-3987.csv')
+    data = pd.read_csv('data/raw/us-shein-beauty_and_health-4267.csv')
     
     # Initialize Inspector
     inspector = InspectorAgent(config['agents']['inspector']['config'])
