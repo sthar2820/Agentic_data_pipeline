@@ -1,0 +1,47 @@
+pipeline:
+  name: "Agentic Data Pipeline"
+  version: "1.0.0"
+  
+agents:
+  inspector:
+    name: "Data Inspector Agent"
+    description: "Analyzes raw data quality and structure"
+    enabled: true
+    config:
+      max_rows_sample: 1000
+      quality_checks:
+        - missing_values
+        - data_types
+        - duplicates
+        - outliers
+        - column_statistics
+  
+  refiner:
+    name: "Data Refiner Agent"
+    description: "Cleans and preprocesses data"
+    enabled: true
+    config:
+      handle_missing: "auto"  # auto, drop, fill, interpolate
+      remove_duplicates: true
+      outlier_treatment: "clip"  # clip, remove, ignore
+      encoding: "utf-8"
+  
+  insight:
+    name: "Insight Agent"
+    description: "Generates insights and visualizations"
+    enabled: true
+    config:
+      generate_plots: true
+      correlation_analysis: true
+      summary_statistics: true
+      export_format: ["html", "pdf"]
+
+data:
+  input_path: "data/raw"
+  output_path: "data/cleaned"
+  artifacts_path: "data/artifacts"
+  
+logging:
+  level: "INFO"
+  file: "data/artifacts/pipeline.log"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
