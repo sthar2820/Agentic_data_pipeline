@@ -1,4 +1,3 @@
-# filepath: /Users/roh/Documents/GitHub/Agentic_data_pipeline/agents/inspector/inspector_agent.py
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -19,12 +18,12 @@ from orchestrator.serialize import save_json
 _DEFAULTS: Dict[str, Any] = {
     "dataset_name": "dataset",
     "artifacts_dir": "data/artifacts",
-    "outlier_method": "row",
+    "outlier_method": "row",     # 'row' or 'cell'
     "sample_size": 500,
     "thresholds": {
-        "missing_drop": 0.70,
-        "missing_high": 0.30,
-        "missing_medium": 0.10,
+        "missing_drop": 0.70,    # >70% missing → suggest drop
+        "missing_high": 0.30,    # 30–70%
+        "missing_medium": 0.10,  # 10–30%
         "cardinality_low_ratio": 0.05,
         "cardinality_high_ratio": 0.95,
     },
@@ -44,56 +43,66 @@ class InspectorAgent:
 
     def __init__(self, config: Dict[str, Any] = None):
         cfg = config or {}
+        # Shallow merge of top-level + nested thresholds/modules
         thresholds = {**_DEFAULTS["thresholds"], **cfg.get("thresholds", {})}
         modules = {**_DEFAULTS["modules"], **cfg.get("modules", {})}
         self.config = {**_DEFAULTS, **cfg, "thresholds": thresholds, "modules": modules}
-        self.logger = logging.getLogger(self.__class__.__name__)
 
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.dataset_name = self.config["dataset_name"]
+        self.artifacts_dir = Path(self.config["artifacts_dir"])
+        self.artifacts_dir.mkdir(parents=True, exist_ok=True)
+        self.outlier_method = self.config["outlier_method"]
+
+    # ------------------------------------------------------------------ #
+    # Public API
+    # ------------------------------------------------------------------ #
     def analyze_data(self, data: pd.DataFrame) -> DataQualityReport:
-        """Main analysis method with agentic outputs."""
-        self.logger.info(f"Starting analysis: {data.shape[0]} rows × {data.shape[1]} cols")
-        
-        # Core metrics
+        self.logger.info(
+            f"Inspector: analyzing {data.shape[0]} rows × {data.shape[1]} columns..."
+        )
+
+        # Core analysis
         missing_values = self._analyze_missing_values(data)
         data_types = self._analyze_data_types(data)
         duplicate_count = self._count_duplicates(data)
         outlier_count, outlier_details = self._detect_outliers(data)
         column_stats = self._calculate_column_statistics(data)
-        
-        # Enhanced metrics (if enabled)
+
+        # Enhanced analysis
         cardinality = self._analyze_cardinality(data)
         skewness = self._analyze_skewness(data) if self.config["modules"]["skewness"] else {}
         patterns = self._analyze_patterns(data) if self.config["modules"]["patterns"] else {}
         consistency = self._check_consistency(data) if self.config["modules"]["consistency"] else {}
-        
-        # Column quality scoring
-        col_quality = self._calculate_column_quality_scores(data, missing_values, cardinality, consistency)
-        
+        quality_scores = self._calculate_column_quality_scores(
+            data, missing_values, cardinality, consistency
+        )
+
         # Enrich column stats
         for col in column_stats:
-            column_stats[col]["cardinality"] = cardinality.get(col, {})
-            if skewness:
-                column_stats[col]["skewness"] = skewness.get(col)
-            if patterns:
-                column_stats[col]["patterns"] = patterns.get(col, {})
-            column_stats[col]["quality_score"] = col_quality.get(col, 0.0)
+            if col in cardinality:
+                column_stats[col]["cardinality"] = cardinality[col]
+            if col in skewness:
+                column_stats[col]["skewness"] = skewness[col]
+            if col in patterns:
+                column_stats[col]["patterns"] = patterns[col]
+            if col in quality_scores:
+                column_stats[col]["quality_score"] = quality_scores[col]
             if col in outlier_details:
                 column_stats[col]["outliers"] = outlier_details[col]
-        
-        # Generate human recommendations
+
+        # Recommendations + actions
         recommendations = self._generate_recommendations(
-            missing_values, duplicate_count, outlier_count, data_types,
-            cardinality, consistency, col_quality, patterns
+            data, missing_values, duplicate_count, outlier_count, data_types,
+            cardinality, consistency, quality_scores, patterns
         )
-        
-        # Generate machine actions
         proposed_actions = self._propose_actions(missing_values, consistency, cardinality)
-        
-        # Overall quality rating
+
+        # Overall quality
         overall_quality = self._assess_overall_quality(
-            missing_values, duplicate_count, outlier_count, data.shape[0], col_quality
+            missing_values, duplicate_count, outlier_count, quality_scores, len(data)
         )
-        
+
         report = DataQualityReport(
             overall_quality=overall_quality,
             missing_values=missing_values,
@@ -107,315 +116,469 @@ class InspectorAgent:
             skewness_analysis=skewness,
             pattern_analysis=patterns,
             consistency_issues=consistency,
-            column_quality_scores=col_quality,
+            column_quality_scores=quality_scores,
             outlier_details=outlier_details,
-            proposed_actions=proposed_actions
+            proposed_actions=proposed_actions,
         )
-        
-        self._save_artifacts(report, proposed_actions)
+
+        # Persist artifacts
+        base = str(self.artifacts_dir / self.dataset_name)
+        save_json(report, f"{base}_dq_report.json")
+        save_json(proposed_actions, f"{base}_clean_plan.json")
+
+        self.logger.info(f"Inspector complete. Overall quality = {overall_quality.value.upper()}")
+        self.logger.info(f"Saved: {base}_dq_report.json and {base}_clean_plan.json")
         return report
 
+    # ------------------------------------------------------------------ #
+    # Core analyses
+    # ------------------------------------------------------------------ #
     def _analyze_missing_values(self, data: pd.DataFrame) -> Dict[str, float]:
-        return {col: float(data[col].isna().sum() / len(data) * 100) for col in data.columns}
+        if len(data) == 0:
+            return {c: 0.0 for c in data.columns}
+        return ((data.isna().sum() / len(data)) * 100).round(2).to_dict()
 
     def _analyze_data_types(self, data: pd.DataFrame) -> Dict[str, str]:
-        return {col: str(data[col].dtype) for col in data.columns}
+        return data.dtypes.astype(str).to_dict()
 
     def _count_duplicates(self, data: pd.DataFrame) -> int:
         return int(data.duplicated().sum())
 
-    def _detect_outliers(self, data: pd.DataFrame) -> Tuple[int, Dict[str, int]]:
-        """Detect outliers using IQR method."""
-        outlier_details = {}
-        total = 0
-        
-        for col in data.select_dtypes(include=[np.number]).columns:
-            q1 = data[col].quantile(0.25)
-            q3 = data[col].quantile(0.75)
-            iqr = q3 - q1
-            lower = q1 - 1.5 * iqr
-            upper = q3 + 1.5 * iqr
-            outliers = ((data[col] < lower) | (data[col] > upper)).sum()
-            outlier_details[col] = int(outliers)
-            total += outliers
-            
-        return total, outlier_details
+    def _detect_outliers(self, data: pd.DataFrame) -> Tuple[int, Dict[str, Dict[str, Any]]]:
+        outlier_count = 0
+        details: Dict[str, Dict[str, Any]] = {}
+        numeric_cols = [c for c in data.columns if is_numeric_dtype(data[c])]
+
+        row_idx: set = set()
+
+        for col in numeric_cols:
+            col_data = data[col].dropna()
+            if len(col_data) < 4:
+                continue
+
+            Q1 = col_data.quantile(0.25)
+            Q3 = col_data.quantile(0.75)
+            IQR = Q3 - Q1
+            if IQR == 0:
+                continue
+
+            lower, upper = Q1 - 1.5 * IQR, Q3 + 1.5 * IQR
+            mask = (data[col] < lower) | (data[col] > upper)
+            col_count = int(mask.sum())
+
+            if self.outlier_method == "cell":
+                outlier_count += col_count
+            else:
+                row_idx.update(data.index[mask].tolist())
+
+            details[col] = {
+                "count": col_count,
+                "percentage": round((col_count / len(data)) * 100, 2),
+                "lower_bound": float(lower),
+                "upper_bound": float(upper),
+                "Q1": float(Q1),
+                "Q3": float(Q3),
+                "IQR": float(IQR),
+            }
+
+        if self.outlier_method == "row":
+            outlier_count = len(row_idx)
+
+        return outlier_count, details
 
     def _calculate_column_statistics(self, data: pd.DataFrame) -> Dict[str, Dict[str, Any]]:
-        """Calculate basic statistics for each column."""
-        stats = {}
+        stats: Dict[str, Dict[str, Any]] = {}
+        n = len(data)
+
         for col in data.columns:
-            col_stats = {
-                "missing_count": int(data[col].isna().sum()),
-                "missing_pct": float(data[col].isna().sum() / len(data) * 100),
-                "unique_count": int(data[col].nunique()),
-                "dtype": str(data[col].dtype)
+            col_stats: Dict[str, Any] = {
+                "dtype": str(data[col].dtype),
+                "non_null_count": int(data[col].count()),
+                "null_count": int(data[col].isna().sum()),
+                "unique_count": int(data[col].nunique(dropna=True)),
+                "missing_pct": round((float(data[col].isna().sum() / max(n, 1)) * 100), 2),
             }
-            
+
             if is_numeric_dtype(data[col]):
-                col_stats.update({
-                    "mean": float(data[col].mean()) if not data[col].isna().all() else None,
-                    "std": float(data[col].std()) if not data[col].isna().all() else None,
-                    "min": float(data[col].min()) if not data[col].isna().all() else None,
-                    "max": float(data[col].max()) if not data[col].isna().all() else None
-                })
-            
+                nn = data[col].dropna()
+                if len(nn) > 0:
+                    col_stats.update(
+                        {
+                            "mean": float(nn.mean()),
+                            "std": float(nn.std()) if len(nn) > 1 else 0.0,
+                            "min": float(nn.min()),
+                            "max": float(nn.max()),
+                            "median": float(nn.median()),
+                            "q25": float(nn.quantile(0.25)),
+                            "q75": float(nn.quantile(0.75)),
+                        }
+                    )
+            elif is_string_dtype(data[col]) or is_categorical_dtype(data[col]):
+                nn = data[col].dropna().astype(str)
+                if len(nn) > 0:
+                    vc = nn.value_counts()
+                    mode_val = str(vc.index[0]) if len(vc) else None
+                    col_stats.update(
+                        {
+                            "most_common": mode_val,
+                            "most_common_freq": int(vc.iloc[0]) if len(vc) else 0,
+                            "avg_length": round(float(nn.str.len().mean()), 2),
+                            "min_length": int(nn.str.len().min()),
+                            "max_length": int(nn.str.len().max()),
+                        }
+                    )
+
             stats[col] = col_stats
+
         return stats
 
-    def _analyze_cardinality(self, data: pd.DataFrame) -> Dict[str, Dict[str, Any]]:
-        """Analyze cardinality (constant/low/medium/high/unique)."""
-        result = {}
-        thresholds = self.config["thresholds"]
-        
-        for col in data.columns:
-            unique = data[col].nunique()
-            total = len(data)
-            ratio = unique / total if total > 0 else 0
-            
-            if unique == 1:
-                category = "constant"
-            elif ratio < thresholds["cardinality_low_ratio"]:
-                category = "low"
-            elif ratio > thresholds["cardinality_high_ratio"]:
-                category = "unique"
-            elif ratio > 0.5:
-                category = "high"
+    # ------------------------------------------------------------------ #
+    # Enhanced analyses
+    # ------------------------------------------------------------------ #
+    def _analyze_cardinality(self, data: pd.DataFrame) -> Dict[str, str]:
+        out: Dict[str, str] = {}
+        n = len(data)
+        if n == 0:
+            return {c: "constant" for c in data.columns}
+
+        hi = self.config["thresholds"]["cardinality_high_ratio"]
+        lo = self.config["thresholds"]["cardinality_low_ratio"]
+
+        for c in data.columns:
+            uniq = int(data[c].nunique(dropna=True))
+            ratio = uniq / max(n, 1)
+            if uniq <= 1:
+                out[c] = "constant"
+            elif ratio < lo:
+                out[c] = "low"
+            elif ratio < 0.50:
+                out[c] = "medium"
+            elif ratio < hi:
+                out[c] = "high"
             else:
-                category = "medium"
-            
-            result[col] = {
-                "unique": unique,
-                "total": total,
-                "ratio": round(ratio, 4),
-                "category": category
-            }
-        return result
+                out[c] = "unique"
+        return out
 
     def _analyze_skewness(self, data: pd.DataFrame) -> Dict[str, float]:
-        """Analyze skewness for numeric columns."""
-        result = {}
-        for col in data.select_dtypes(include=[np.number]).columns:
-            if data[col].nunique() > 1:
-                result[col] = round(float(data[col].skew()), 4)
-        return result
+        sk: Dict[str, float] = {}
+        for c in data.columns:
+            if is_numeric_dtype(data[c]):
+                nn = data[c].dropna()
+                if len(nn) > 2 and nn.std() > 0:
+                    val = float(nn.skew())
+                    if np.isfinite(val):
+                        sk[c] = round(val, 3)
+        return sk
 
     def _analyze_patterns(self, data: pd.DataFrame) -> Dict[str, Dict[str, Any]]:
-        """Pattern profiling with special detections."""
-        result = {}
-        sample_size = min(self.config["sample_size"], len(data))
-        
-        for col in data.select_dtypes(include=[object, 'string']).columns:
-            sample = data[col].dropna().head(sample_size).astype(str)
-            if len(sample) == 0:
-                continue
-            
-            # Pattern masks: A=letter, #=digit, S=symbol, W=whitespace
-            def make_mask(s):
-                return "".join(
-                    "A" if c.isalpha() else
-                    "#" if c.isdigit() else
-                    "W" if c.isspace() else
-                    "S"
-                    for c in str(s)
-                )
-            
-            masks = sample.apply(make_mask)
-            top_patterns = masks.value_counts().head(5).to_dict()
-            
-            result[col] = {
-                "top_patterns": {k: int(v) for k, v in top_patterns.items()},
-                "contains_email": bool(sample.str.contains("@", regex=False).any()),
-                "contains_url": bool(sample.str.contains("http", regex=False).any()),
-                "contains_phone": bool(sample.str.match(r".*\d{3}[-.]?\d{3}[-.]?\d{4}.*").any()),
-                "contains_currency": bool(sample.str.match(r"^\$?[\d,]+\.?\d*$").any()),
-                "is_date_like": self._is_date_like(sample)
-            }
-        return result
+        patterns: Dict[str, Dict[str, Any]] = {}
+        k = int(self.config.get("sample_size", 500))
+        for c in data.columns:
+            if is_string_dtype(data[c]) or is_categorical_dtype(data[c]):
+                ser = data[c].dropna().astype(str)
+                if len(ser) == 0:
+                    continue
+                sample = ser.sample(min(k, len(ser)), random_state=42)
+                masks = sample.apply(self._mask)
+                vc = masks.value_counts()
+                top = vc.head(5).to_dict()
+                pct = float((vc.iloc[0] / len(masks)) * 100) if len(vc) else 0.0
+
+                info = {
+                    "top_patterns": top,
+                    "num_unique_patterns": int(len(vc)),
+                    "pattern_consistency_pct": round(pct, 1),
+                    "contains_email": bool(sample.str.contains("@", regex=False).any()),
+                    "contains_url": bool(sample.str.contains("http", regex=False).any()),
+                    "contains_phone": bool(
+                        sample.str.match(r".*\d{3}[-.]?\d{3}[-.]?\d{4}.*").any()
+                    ),
+                    "contains_currency": bool(sample.str.match(r"^\$?[\d,]+\.?\d*$").any()),
+                    "is_date_like": self._is_date_like(sample),
+                }
+                patterns[c] = info
+        return patterns
+
+    def _mask(self, s: str) -> str:
+        if not isinstance(s, str) or s == "":
+            return ""
+        out = []
+        last = None
+        for ch in s:
+            if ch.isalpha():
+                t = "A"
+            elif ch.isdigit():
+                t = "#"
+            elif ch.isspace():
+                t = "W"
+            else:
+                t = "S"
+            if t != last:
+                out.append(t)
+                last = t
+        return "".join(out)
 
     def _is_date_like(self, series: pd.Series) -> bool:
-        """Check if series contains date-like strings."""
+        sample = series.head(50)
         try:
-            pd.to_datetime(series.head(20), errors='coerce')
-            return series.head(20).apply(lambda x: pd.to_datetime(x, errors='coerce')).notna().mean() > 0.5
+            parsed = pd.to_datetime(sample, errors="coerce")
+            if len(parsed) == 0:
+                return False
+            return parsed.notna().mean() > 0.7
         except:
             return False
 
-    def _check_consistency(self, data: pd.DataFrame) -> Dict[str, Dict[str, Any]]:
-        """Consistency checks for text columns."""
-        result = {}
-        
-        for col in data.select_dtypes(include=[object, 'string']).columns:
-            sample = data[col].dropna().astype(str).head(self.config["sample_size"])
-            if len(sample) == 0:
+    def _check_consistency(self, data: pd.DataFrame) -> Dict[str, List[str]]:
+        issues: Dict[str, List[str]] = {}
+        for c in data.columns:
+            if not (is_string_dtype(data[c]) or is_categorical_dtype(data[c])):
                 continue
-            
-            issues = {
-                "numeric_like": int(sample.str.match(r"^\d+\.?\d*$").sum()),
-                "has_leading_ws": int(sample.str.match(r"^\s+.*").sum()),
-                "has_trailing_ws": int(sample.str.match(r".*\s+$").sum()),
-                "mixed_case": int(((sample != sample.str.lower()) & (sample != sample.str.upper())).sum())
-            }
-            
-            if any(issues.values()):
-                result[col] = issues
-        return result
+            nn = data[c].dropna().astype(str)
+            if len(nn) == 0:
+                continue
+
+            sample = nn.sample(min(500, len(nn)), random_state=42)
+
+            probs: List[str] = []
+
+            # numeric-like?
+            try:
+                num_like = sample.str.replace(",", "", regex=False)\
+                                 .str.fullmatch(r"[-+]?\d*\.?\d+").mean()
+                if num_like > 0.7:
+                    probs.append(f"Numeric-like: {num_like*100:.0f}% numeric strings")
+                elif 0.1 < num_like < 0.7:
+                    probs.append(f"Mixed: {num_like*100:.0f}% numeric, {(1-num_like)*100:.0f}% text")
+            except:
+                pass
+
+            # date-like?
+            if self._is_date_like(sample):
+                probs.append("Date-like: consider datetime parsing")
+
+            # whitespace
+            leading = int((sample != sample.str.lstrip()).sum())
+            trailing = int((sample != sample.str.rstrip()).sum())
+            if leading or trailing:
+                probs.append(f"Whitespace: {leading} leading, {trailing} trailing occurrences")
+
+            # case inconsistency
+            if sample.str.lower().nunique() < int(sample.nunique() * 0.9):
+                probs.append("Case inconsistency: same values with different casing")
+
+            # length variation
+            lens = sample.str.len()
+            if lens.std() > max(lens.mean(), 1):
+                probs.append(f"Length variation: {int(lens.min())}–{int(lens.max())} chars (mean {lens.mean():.1f})")
+
+            if probs:
+                issues[c] = probs
+
+        return issues
 
     def _calculate_column_quality_scores(
-        self, data: pd.DataFrame, missing: Dict[str, float],
-        cardinality: Dict[str, Dict], consistency: Dict[str, Dict]
+        self,
+        data: pd.DataFrame,
+        missing_values: Dict[str, float],
+        cardinality: Dict[str, str],
+        consistency_issues: Dict[str, List[str]],
     ) -> Dict[str, float]:
-        """Score each column 0-1 based on quality."""
-        scores = {}
-        for col in data.columns:
+        scores: Dict[str, float] = {}
+        for c in data.columns:
             score = 1.0
-            
-            # Missing penalty
-            miss_pct = missing.get(col, 0)
-            score -= min(miss_pct / 100, 0.5)
-            
-            # Cardinality penalty
-            card = cardinality.get(col, {})
-            if card.get("category") == "constant":
-                score -= 0.3
-            
-            # Consistency penalty
-            if col in consistency:
-                total_issues = sum(consistency[col].values())
-                score -= min(total_issues / len(data) * 0.2, 0.2)
-            
-            scores[col] = max(0.0, round(score, 4))
+
+            # completeness (max -0.40)
+            miss = missing_values.get(c, 0.0) / 100
+            score -= miss * 0.40
+
+            # cardinality (max -0.25)
+            card = cardinality.get(c, "medium")
+            if card == "constant":
+                score -= 0.25
+            elif card == "unique" and (is_string_dtype(data[c]) or is_categorical_dtype(data[c])):
+                score -= 0.10
+
+            # type consistency (max -0.20)
+            if c in consistency_issues:
+                score -= min(len(consistency_issues[c]) * 0.07, 0.20)
+
+            # pattern/length consistency for text (max -0.15)
+            if is_string_dtype(data[c]) or is_categorical_dtype(data[c]):
+                nn = data[c].dropna().astype(str)
+                if len(nn) > 1:
+                    uniq_ratio = nn.nunique(dropna=True) / len(nn)
+                    if uniq_ratio < 0.01:
+                        score -= 0.10
+                    lens = nn.str.len()
+                    if lens.std() > max(lens.mean(), 1):
+                        score -= 0.05
+
+            scores[c] = max(0.0, min(1.0, round(score, 3)))
         return scores
 
+    # ------------------------------------------------------------------ #
+    # Recommendations & actions
+    # ------------------------------------------------------------------ #
     def _generate_recommendations(
-        self, missing: Dict[str, float], dup_count: int, outlier_count: int,
-        dtypes: Dict[str, str], cardinality: Dict, consistency: Dict,
-        col_quality: Dict[str, float], patterns: Dict
+        self,
+        data: pd.DataFrame,
+        missing_values: Dict[str, float],
+        duplicate_count: int,
+        outlier_count: int,
+        data_types: Dict[str, str],
+        cardinality: Dict[str, str],
+        consistency_issues: Dict[str, List[str]],
+        quality_scores: Dict[str, float],
+        patterns: Dict[str, Dict[str, Any]],
     ) -> List[str]:
-        """Generate human-readable recommendations."""
-        recs = []
-        thresholds = self.config["thresholds"]
-        
-        # Missing values
-        high_missing = [col for col, pct in missing.items() if pct > thresholds["missing_drop"] * 100]
-        if high_missing:
-            recs.append(f"🚨 CRITICAL: Drop {len(high_missing)} columns with >{thresholds['missing_drop']*100:.0f}% missing: {high_missing[:3]}")
-        
-        medium_missing = [col for col, pct in missing.items() 
-                         if thresholds["missing_medium"] * 100 < pct <= thresholds["missing_high"] * 100]
-        if medium_missing:
-            recs.append(f"⚠️ HIGH: Impute {len(medium_missing)} columns with 10-30% missing")
-        
-        # Duplicates
-        if dup_count > 0:
-            recs.append(f"⚠️ HIGH: Remove {dup_count} duplicate rows")
-        
-        # Outliers
-        if outlier_count > 0:
-            recs.append(f"📊 MEDIUM: Review {outlier_count} outliers (may be valid)")
-        
-        # Consistency issues
-        if consistency:
-            for col, issues in list(consistency.items())[:3]:
-                if issues.get("numeric_like", 0) > 0:
-                    recs.append(f"📊 MEDIUM: Column '{col}' has {issues['numeric_like']} numeric-like strings - consider type conversion")
-        
-        # Cardinality
-        constant_cols = [col for col, info in cardinality.items() if info["category"] == "constant"]
+        th = self.config["thresholds"]
+        recs: List[str] = []
+
+        constant_cols = [c for c, v in cardinality.items() if v == "constant"]
         if constant_cols:
-            recs.append(f"�� INFO: Consider dropping {len(constant_cols)} constant columns")
-        
-        # Low quality columns
-        low_quality = [col for col, score in col_quality.items() if score < 0.5]
-        if low_quality:
-            recs.append(f"⚠️ HIGH: {len(low_quality)} columns have quality score <0.5 - review carefully")
-        
+            recs.append(
+                f"CRITICAL: Drop constant columns ({len(constant_cols)}): "
+                + ", ".join(constant_cols[:3]) + (" ..." if len(constant_cols) > 3 else "")
+            )
+
+        critical_missing = [c for c, pct in missing_values.items() if pct > th["missing_drop"] * 100]
+        if critical_missing:
+            recs.append(
+                f"CRITICAL: >70% missing in {len(critical_missing)} column(s): "
+                + ", ".join(critical_missing[:3]) + (" ..." if len(critical_missing) > 3 else "")
+            )
+
+        if duplicate_count > 0:
+            dup_pct = duplicate_count / max(len(data), 1) * 100
+            recs.append(f"HIGH: Remove {duplicate_count} duplicate rows ({dup_pct:.1f}%).")
+
+        high_missing = [
+            c for c, pct in missing_values.items()
+            if th["missing_high"] * 100 < pct <= th["missing_drop"] * 100
+        ]
+        if high_missing:
+            recs.append(
+                f"HIGH: Handle {len(high_missing)} column(s) with 30-70% missing: "
+                + ", ".join(high_missing[:3]) + (" ..." if len(high_missing) > 3 else "")
+            )
+
+        numeric_text = [
+            c for c, iss in consistency_issues.items()
+            if any("Numeric-like" in s for s in iss)
+        ]
+        if numeric_text:
+            recs.append(
+                f"HIGH: Convert numeric-like text to numbers in {len(numeric_text)} column(s): "
+                + ", ".join(numeric_text[:3]) + (" ..." if len(numeric_text) > 3 else "")
+            )
+
+        moderate_missing = [
+            c for c, pct in missing_values.items()
+            if th["missing_medium"] * 100 < pct <= th["missing_high"] * 100
+        ]
+        if moderate_missing:
+            recs.append(
+                f"MEDIUM: Impute {len(moderate_missing)} column(s) with 10-30% missing: "
+                + ", ".join(moderate_missing[:3]) + (" ..." if len(moderate_missing) > 3 else "")
+            )
+
+        if outlier_count > 0:
+            recs.append(f"MEDIUM: Review {outlier_count} outlier value(s); consider capping or removal.")
+
+        date_like = [
+            c for c, iss in consistency_issues.items()
+            if any("Date-like" in s for s in iss)
+        ]
+        if date_like:
+            recs.append(
+                f"MEDIUM: Parse datetime in {len(date_like)} column(s): "
+                + ", ".join(date_like[:3]) + (" ..." if len(date_like) > 3 else "")
+            )
+
+        ws_cols = [c for c, iss in consistency_issues.items() if any("Whitespace" in s for s in iss)]
+        if ws_cols:
+            recs.append(
+                f"INFO: Trim whitespace in {len(ws_cols)} column(s): "
+                + ", ".join(ws_cols[:3]) + (" ..." if len(ws_cols) > 3 else "")
+            )
+
+        case_cols = [c for c, iss in consistency_issues.items() if any("Case inconsistency" in s for s in iss)]
+        if case_cols:
+            recs.append(
+                f"INFO: Standardize case in {len(case_cols)} column(s): "
+                + ", ".join(case_cols[:3]) + (" ..." if len(case_cols) > 3 else "")
+            )
+
+        low_q = [(c, s) for c, s in quality_scores.items() if s < 0.5]
+        if low_q:
+            low_q.sort(key=lambda x: x[1])
+            recs.append(
+                "QUALITY: Low-quality columns (score < 0.5): "
+                + ", ".join([f"{c} ({s:.2f})" for c, s in low_q[:3]])
+                + (" ..." if len(low_q) > 3 else "")
+            )
+
+        if not recs:
+            recs.append("EXCELLENT: No major data quality issues detected!")
+
         return recs
 
     def _propose_actions(
-        self, missing: Dict[str, float], consistency: Dict, cardinality: Dict
+        self,
+        missing_values: Dict[str, float],
+        consistency_issues: Dict[str, List[str]],
+        cardinality: Dict[str, str],
     ) -> List[Dict[str, Any]]:
-        """Generate machine-readable proposed actions."""
-        actions = []
-        thresholds = self.config["thresholds"]
-        
-        for col, pct in missing.items():
-            if pct > thresholds["missing_drop"] * 100:
-                actions.append({
-                    "column": col,
-                    "action": "drop_column",
-                    "reason": f"missing>{thresholds['missing_drop']*100:.0f}%",
-                    "priority": "high"
-                })
-            elif pct > thresholds["missing_medium"] * 100:
-                actions.append({
-                    "column": col,
-                    "action": "impute",
-                    "strategy": "advanced",
-                    "reason": f"missing={pct:.1f}%",
-                    "priority": "medium"
-                })
-        
-        for col, issues in consistency.items():
-            if issues.get("numeric_like", 0) > 5:
-                actions.append({
-                    "column": col,
-                    "action": "cast_numeric",
-                    "coerce": True,
-                    "reason": "contains numeric-like strings",
-                    "priority": "medium"
-                })
-        
-        for col, info in cardinality.items():
-            if info["category"] == "constant":
-                actions.append({
-                    "column": col,
-                    "action": "drop_column",
-                    "reason": "constant_value",
-                    "priority": "low"
-                })
-        
+        th = self.config["thresholds"]
+        actions: List[Dict[str, Any]] = []
+
+        for c, pct in missing_values.items():
+            if pct > th["missing_drop"] * 100:
+                actions.append({"column": c, "action": "drop_column", "reason": "missing>70%"})
+            elif pct > th["missing_high"] * 100:
+                actions.append({"column": c, "action": "impute", "strategy": "advanced", "reason": "missing 30–70%"})
+            elif pct > th["missing_medium"] * 100:
+                actions.append({"column": c, "action": "impute", "strategy": "simple", "reason": "missing 10–30%"})
+
+        for c, iss in (consistency_issues or {}).items():
+            if any("Numeric-like" in s for s in iss):
+                actions.append({"column": c, "action": "cast_numeric", "coerce": True})
+            if any("Date-like" in s for s in iss):
+                actions.append({"column": c, "action": "parse_datetime"})
+            if any("Whitespace" in s for s in iss):
+                actions.append({"column": c, "action": "trim_whitespace"})
+            if any("Case inconsistency" in s for s in iss):
+                actions.append({"column": c, "action": "standardize_case", "mode": "lower"})
+
+        for c, card in cardinality.items():
+            if card == "constant":
+                actions.append({"column": c, "action": "drop_column", "reason": "constant"})
+            elif card == "unique":
+                actions.append({"column": c, "action": "flag_id"})
+
         return actions
 
+    # ------------------------------------------------------------------ #
+    # Overall quality
+    # ------------------------------------------------------------------ #
     def _assess_overall_quality(
-        self, missing: Dict[str, float], dup_count: int, outlier_count: int,
-        total_rows: int, col_quality: Dict[str, float]
+        self,
+        missing_values: Dict[str, float],
+        duplicate_count: int,
+        outlier_count: int,
+        quality_scores: Dict[str, float],
+        total_rows: int,
     ) -> DataQuality:
-        """Assess overall quality rating."""
-        avg_missing = sum(missing.values()) / len(missing) if missing else 0
-        dup_pct = (dup_count / total_rows * 100) if total_rows > 0 else 0
-        outlier_pct = (outlier_count / total_rows * 100) if total_rows > 0 else 0
-        avg_quality = sum(col_quality.values()) / len(col_quality) if col_quality else 0
-        
-        score = 100
-        score -= avg_missing * 0.5
-        score -= min(dup_pct * 2, 20)
-        score -= min(outlier_pct, 10)
-        score -= (1 - avg_quality) * 30
-        
-        self.logger.info(f"Quality score: {score:.2f}/100 "
-                        f"(missing={avg_missing:.1f}%, dups={dup_pct:.1f}%, "
-                        f"outliers={outlier_pct:.1f}%, col_quality={avg_quality:.3f})")
-        
-        if score >= 85:
+        avg_missing = float(np.mean(list(missing_values.values()))) if missing_values else 0.0
+        dup_pct = duplicate_count / max(total_rows, 1) * 100
+        outlier_pct = outlier_count / max(total_rows, 1) * 100
+        avg_quality = float(np.mean(list(quality_scores.values()))) if quality_scores else 0.5
+
+        if (avg_missing < 5 and dup_pct < 1 and outlier_pct < 1 and avg_quality > 0.8):
             return DataQuality.EXCELLENT
-        elif score >= 70:
+        elif (avg_missing < 15 and dup_pct < 5 and outlier_pct < 5 and avg_quality > 0.6):
             return DataQuality.GOOD
-        elif score >= 50:
+        elif (avg_missing < 40 and dup_pct < 20 and outlier_pct < 15 and avg_quality > 0.4):
             return DataQuality.FAIR
         else:
             return DataQuality.POOR
-
-    def _save_artifacts(self, report: DataQualityReport, proposed_actions: List[Dict[str, Any]]):
-        """Save JSON artifacts."""
-        artifacts_dir = Path(self.config["artifacts_dir"])
-        artifacts_dir.mkdir(parents=True, exist_ok=True)
-        
-        dataset_name = self.config["dataset_name"]
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        base = artifacts_dir / f"{dataset_name}_{timestamp}"
-        
-        save_json(report, f"{base}_dq_report.json")
-        save_json(proposed_actions, f"{base}_clean_plan.json")
-        
-        self.logger.info(f"Artifacts saved: {base}_*.json")
