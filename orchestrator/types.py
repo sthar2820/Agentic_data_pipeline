@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Dict, List, Any, Optional
 from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
+
 import pandas as pd
 
 
@@ -29,21 +32,22 @@ class DataQualityReport:
     column_stats: Dict[str, Dict[str, Any]]
     recommendations: List[str]
     timestamp: str
-    # Enhanced fields
-    cardinality_analysis: Optional[Dict[str, str]] = None
-    skewness_analysis: Optional[Dict[str, float]] = None
-    pattern_analysis: Optional[Dict[str, Dict[str, Any]]] = None
-    consistency_issues: Optional[Dict[str, List[str]]] = None
-    column_quality_scores: Optional[Dict[str, float]] = None
-    outlier_details: Optional[Dict[str, Dict[str, Any]]] = None
-    proposed_actions: Optional[List[Dict[str, Any]]] = None  # Agentic: machine-readable actions
+
+    # Enhanced fields – these now match InspectorAgent exactly
+    cardinality_analysis: Dict[str, Dict[str, Any]]
+    skewness_analysis: Dict[str, float]
+    pattern_analysis: Dict[str, Dict[str, Any]]
+    consistency_issues: Dict[str, Dict[str, Any]]
+    column_quality_scores: Dict[str, float]
+    outlier_details: Dict[str, int]
+    proposed_actions: List[Dict[str, Any]]  # agentic: machine-readable actions
 
 
 @dataclass
 class CleaningReport:
     """Report from the Refiner Agent"""
-    original_shape: tuple
-    cleaned_shape: tuple
+    original_shape: Tuple[int, int]
+    cleaned_shape: Tuple[int, int]
     actions_taken: List[str]
     columns_dropped: List[str]
     rows_removed: int
