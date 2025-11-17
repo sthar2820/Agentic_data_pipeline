@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from datetime import datetime
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Tuple
 import logging
 
 from orchestrator.types import CleaningReport
@@ -16,7 +16,7 @@ class CleanerAgent:
         self.config = config
         self.logger = logging.getLogger(self.__class__.__name__)
         
-    def clean_data(self, data: pd.DataFrame) -> tuple[pd.DataFrame, CleaningReport]:
+    def clean_data(self, data: pd.DataFrame) -> Tuple[pd.DataFrame, CleaningReport]:
         """
         Clean and preprocess the input data
         """
@@ -74,7 +74,7 @@ class CleanerAgent:
         self.logger.info(f"Data cleaning completed. Shape: {original_shape} -> {cleaned_data.shape}")
         return cleaned_data, report
     
-    def _handle_missing_values(self, data: pd.DataFrame) -> tuple[pd.DataFrame, List[str]]:
+    def _handle_missing_values(self, data: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
         """Handle missing values based on configuration"""
         actions = []
         handle_method = self.config.get('handle_missing', 'auto')
@@ -114,7 +114,7 @@ class CleanerAgent:
         
         return data, actions
     
-    def _handle_outliers(self, data: pd.DataFrame) -> tuple[pd.DataFrame, List[str]]:
+    def _handle_outliers(self, data: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
         """Handle outliers based on configuration"""
         actions = []
         treatment = self.config.get('outlier_treatment', 'ignore')
@@ -146,19 +146,21 @@ class CleanerAgent:
         missing_pct = data.isnull().sum() / len(data)
         return missing_pct[missing_pct > threshold].index.tolist()
     
-    def _optimize_data_types(self, data: pd.DataFrame) -> tuple[pd.DataFrame, List[str]]:
+    def _optimize_data_types(self, data: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
         """Optimize data types for better memory usage"""
         actions = []
+        allow_object_to_numeric = self.config.get("cast_object_to_numeric", True)
         
         for col in data.columns:
-            if data[col].dtype == 'object':
+            if data[col].dtype == 'object' and allow_object_to_numeric:
                 # Try to convert to numeric
                 try:
                     converted = pd.to_numeric(data[col], errors='coerce')
-                    if not converted.isna().all():
+                    # Only convert if we don't lose everything
+                    if not converted.isna().all() and converted.notna().mean() > 0.5:
                         data[col] = converted
                         actions.append(f"Converted '{col}' to numeric")
-                except:
+                except Exception:
                     pass
             
             elif data[col].dtype == 'int64':
