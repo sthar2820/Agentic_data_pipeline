@@ -21,6 +21,8 @@ class InsightAgent:
         self.config = config
         self.artifacts_path = artifacts_path
         self.logger = logging.getLogger(self.__class__.__name__)
+
+        os.makedirs(self.artifacts_path, exist_ok=True)
         
         # Set up plotting style
         plt.style.use('seaborn-v0_8')
@@ -134,38 +136,61 @@ class InsightAgent:
     
     def _create_data_overview_plot(self, data: pd.DataFrame):
         """Create a comprehensive data overview plot"""
+        if data.empty:
+            self.logger.warning("Data overview plot skipped: empty DataFrame")
+            return
+    
         fig, axes = plt.subplots(2, 2, figsize=(15, 10))
-        
+    
         # Missing values
         missing = data.isnull().sum()
+        axes[0, 0].set_title('Missing Values by Column')
         if missing.sum() > 0:
             missing[missing > 0].plot(kind='bar', ax=axes[0, 0])
-            axes[0, 0].set_title('Missing Values by Column')
             axes[0, 0].tick_params(axis='x', rotation=45)
         else:
-            axes[0, 0].text(0.5, 0.5, 'No Missing Values', ha='center', va='center', transform=axes[0, 0].transAxes)
-            axes[0, 0].set_title('Missing Values by Column')
-        
+            axes[0, 0].text(
+                0.5,
+                0.5,
+                'No Missing Values',
+                ha='center',
+                va='center',
+                transform=axes[0, 0].transAxes,
+            )
+    
         # Data types
         dtype_counts = data.dtypes.value_counts()
-        axes[0, 1].pie(dtype_counts.values, labels=dtype_counts.index, autopct='%1.1f%%')
         axes[0, 1].set_title('Data Types Distribution')
-        
+        if len(dtype_counts) > 0:
+            axes[0, 1].pie(dtype_counts.values, labels=dtype_counts.index, autopct='%1.1f%%')
+        else:
+            axes[0, 1].text(
+                0.5,
+                0.5,
+                'No Columns',
+                ha='center',
+                va='center',
+                transform=axes[0, 1].transAxes,
+            )
+    
         # Unique values
         unique_counts = data.nunique()
-        unique_counts.plot(kind='bar', ax=axes[1, 0])
         axes[1, 0].set_title('Unique Values per Column')
-        axes[1, 0].tick_params(axis='x', rotation=45)
-        
+        if len(unique_counts) > 0:
+            unique_counts.plot(kind='bar', ax=axes[1, 0])
+            axes[1, 0].tick_params(axis='x', rotation=45)
+    
         # Memory usage
         memory_usage = data.memory_usage(deep=True)
-        memory_usage.plot(kind='bar', ax=axes[1, 1])
         axes[1, 1].set_title('Memory Usage by Column')
-        axes[1, 1].tick_params(axis='x', rotation=45)
-        
+        if len(memory_usage) > 0:
+            memory_usage.plot(kind='bar', ax=axes[1, 1])
+            axes[1, 1].tick_params(axis='x', rotation=45)
+    
         plt.tight_layout()
         plt.savefig(os.path.join(self.artifacts_path, 'data_overview.png'), dpi=300, bbox_inches='tight')
         plt.close()
+
     
     def _create_correlation_heatmap(self, data: pd.DataFrame):
         """Create correlation heatmap"""
@@ -362,6 +387,17 @@ class InsightAgent:
     
     def _generate_html_report(self, report: InsightReport, data: pd.DataFrame) -> str:
         """Generate HTML report"""
+        # Build small tables
+        missing_table_rows = []
+        missing = report.summary_statistics.get("missing_values", {})
+        for col, val in missing.items():
+            missing_table_rows.append(f"<tr><td>{col}</td><td>{val}</td></tr>")
+    
+        dtype_table_rows = []
+        dtypes = report.summary_statistics.get("dtypes", {})
+        for dtype, count in dtypes.items():
+            dtype_table_rows.append(f"<tr><td>{dtype}</td><td>{count}</td></tr>")
+    
         html = f"""
         <!DOCTYPE html>
         <html>
@@ -386,6 +422,22 @@ class InsightAgent:
                 <h2>Dataset Overview</h2>
                 <p><strong>Shape:</strong> {data.shape[0]:,} rows × {data.shape[1]} columns</p>
                 <p><strong>Memory Usage:</strong> {report.summary_statistics.get('memory_usage', 0) / (1024*1024):.2f} MB</p>
+            </div>
+    
+            <div class="section">
+                <h2>Missing Values by Column</h2>
+                <table>
+                    <tr><th>Column</th><th>Missing Count</th></tr>
+                    {''.join(missing_table_rows)}
+                </table>
+            </div>
+    
+            <div class="section">
+                <h2>Data Types Summary</h2>
+                <table>
+                    <tr><th>Data Type</th><th>Count</th></tr>
+                    {''.join(dtype_table_rows)}
+                </table>
             </div>
             
             <div class="section">
