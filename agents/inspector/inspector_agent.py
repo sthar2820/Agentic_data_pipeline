@@ -323,7 +323,8 @@ class InspectorAgent:
         # Cardinality
         constant_cols = [col for col, info in cardinality.items() if info["category"] == "constant"]
         if constant_cols:
-            recs.append(f"�� INFO: Consider dropping {len(constant_cols)} constant columns")
+            recs.append(f"ℹ️ INFO: Consider dropping {len(constant_cols)} constant columns")
+
         
         # Low quality columns
         low_quality = [col for col, score in col_quality.items() if score < 0.5]
@@ -382,21 +383,25 @@ class InspectorAgent:
         total_rows: int, col_quality: Dict[str, float]
     ) -> DataQuality:
         """Assess overall quality rating."""
-        avg_missing = sum(missing.values()) / len(missing) if missing else 0
-        dup_pct = (dup_count / total_rows * 100) if total_rows > 0 else 0
-        outlier_pct = (outlier_count / total_rows * 100) if total_rows > 0 else 0
-        avg_quality = sum(col_quality.values()) / len(col_quality) if col_quality else 0
-        
-        score = 100
+        avg_missing = sum(missing.values()) / len(missing) if missing else 0.0
+        dup_pct = (dup_count / total_rows * 100) if total_rows > 0 else 0.0
+        outlier_pct = (outlier_count / total_rows * 100) if total_rows > 0 else 0.0
+        avg_quality = sum(col_quality.values()) / len(col_quality) if col_quality else 1.0
+    
+        score = 100.0
         score -= avg_missing * 0.5
         score -= min(dup_pct * 2, 20)
         score -= min(outlier_pct, 10)
         score -= (1 - avg_quality) * 30
-        
-        self.logger.info(f"Quality score: {score:.2f}/100 "
-                        f"(missing={avg_missing:.1f}%, dups={dup_pct:.1f}%, "
-                        f"outliers={outlier_pct:.1f}%, col_quality={avg_quality:.3f})")
-        
+    
+        score = max(0.0, min(score, 100.0))
+    
+        self.logger.info(
+            f"Quality score: {score:.2f}/100 "
+            f"(missing={avg_missing:.1f}%, dups={dup_pct:.1f}%, "
+            f"outliers={outlier_pct:.1f}%, col_quality={avg_quality:.3f})"
+        )
+    
         if score >= 85:
             return DataQuality.EXCELLENT
         elif score >= 70:
@@ -405,6 +410,7 @@ class InspectorAgent:
             return DataQuality.FAIR
         else:
             return DataQuality.POOR
+
 
     def _save_artifacts(self, report: DataQualityReport, proposed_actions: List[Dict[str, Any]]):
         """Save JSON artifacts."""
