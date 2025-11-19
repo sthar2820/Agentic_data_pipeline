@@ -569,16 +569,46 @@ class InspectorAgent:
         quality_scores: Dict[str, float],
         total_rows: int,
     ) -> DataQuality:
-        avg_missing = float(np.mean(list(missing_values.values()))) if missing_values else 0.0
-        dup_pct = duplicate_count / max(total_rows, 1) * 100
-        outlier_pct = outlier_count / max(total_rows, 1) * 100
-        avg_quality = float(np.mean(list(quality_scores.values()))) if quality_scores else 0.5
-
-        if (avg_missing < 5 and dup_pct < 1 and outlier_pct < 1 and avg_quality > 0.8):
+        """Assess overall quality rating."""
+        avg_missing = sum(missing_values.values()) / len(missing_values) if missing_values else 0.0
+        dup_pct = (duplicate_count / total_rows * 100) if total_rows > 0 else 0.0
+        outlier_pct = (outlier_count / total_rows * 100) if total_rows > 0 else 0.0
+        avg_quality = sum(quality_scores.values()) / len(quality_scores) if quality_scores else 1.0
+    
+        score = 100.0
+        score -= avg_missing * 0.5
+        score -= min(dup_pct * 2, 20)
+        score -= min(outlier_pct, 10)
+        score -= (1 - avg_quality) * 30
+    
+        score = max(0.0, min(score, 100.0))
+    
+        self.logger.info(
+            f"Quality score: {score:.2f}/100 "
+            f"(missing={avg_missing:.1f}%, dups={dup_pct:.1f}%, "
+            f"outliers={outlier_pct:.1f}%, col_quality={avg_quality:.3f})"
+        )
+    
+        if score >= 85:
             return DataQuality.EXCELLENT
-        elif (avg_missing < 15 and dup_pct < 5 and outlier_pct < 5 and avg_quality > 0.6):
+        elif score >= 70:
             return DataQuality.GOOD
-        elif (avg_missing < 40 and dup_pct < 20 and outlier_pct < 15 and avg_quality > 0.4):
+        elif score >= 50:
             return DataQuality.FAIR
         else:
             return DataQuality.POOR
+
+
+    def _save_artifacts(self, report: DataQualityReport, proposed_actions: List[Dict[str, Any]]):
+        """Save JSON artifacts."""
+        artifacts_dir = Path(self.config["artifacts_dir"])
+        artifacts_dir.mkdir(parents=True, exist_ok=True)
+        
+        dataset_name = self.config["dataset_name"]
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        base = artifacts_dir / f"{dataset_name}_{timestamp}"
+        
+        save_json(report, f"{base}_dq_report.json")
+        save_json(proposed_actions, f"{base}_clean_plan.json")
+        
+        self.logger.info(f"Artifacts saved: {base}_*.json")
