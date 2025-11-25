@@ -1,0 +1,207 @@
+{
+  "overall_quality": {},
+  "missing_values": {
+    "price": 0.0,
+    "discount": 0.0,
+    "selling_proposition": 0.0,
+    "goods-title-link": 0.0
+  },
+  "data_types": {
+    "price": "object",
+    "discount": "object",
+    "selling_proposition": "object",
+    "goods-title-link": "object"
+  },
+  "duplicate_count": 0,
+  "outlier_count": 0,
+  "column_stats": {
+    "price": {
+      "dtype": "object",
+      "non_null_count": 3930,
+      "null_count": 0,
+      "unique_count": 1022,
+      "missing_pct": 0.0,
+      "most_common": "$1.70",
+      "most_common_freq": 119,
+      "avg_length": 5.24,
+      "min_length": 5,
+      "max_length": 7,
+      "cardinality": "medium",
+      "patterns": {
+        "top_patterns": {
+          "S#S#": 500
+        },
+        "num_unique_patterns": 1,
+        "pattern_consistency_pct": 100.0,
+        "contains_email": false,
+        "contains_url": false,
+        "contains_phone": false,
+        "contains_currency": true,
+        "is_date_like": "False"
+      },
+      "quality_score": 1.0
+    },
+    "discount": {
+      "dtype": "object",
+      "non_null_count": 3930,
+      "null_count": 0,
+      "unique_count": 78,
+      "missing_pct": 0.0,
+      "most_common": "Unknown",
+      "most_common_freq": 2629,
+      "avg_length": 5.99,
+      "min_length": 3,
+      "max_length": 7,
+      "cardinality": "low",
+      "patterns": {
+        "top_patterns": {
+          "A": 336,
+          "S#S": 164
+        },
+        "num_unique_patterns": 2,
+        "pattern_consistency_pct": 67.2,
+        "contains_email": false,
+        "contains_url": false,
+        "contains_phone": false,
+        "contains_currency": false,
+        "is_date_like": "False"
+      },
+      "quality_score": 1.0
+    },
+    "selling_proposition": {
+      "dtype": "object",
+      "non_null_count": 3930,
+      "null_count": 0,
+      "unique_count": 59,
+      "missing_pct": 0.0,
+      "most_common": "Unknown",
+      "most_common_freq": 1163,
+      "avg_length": 14.61,
+      "min_length": 7,
+      "max_length": 19,
+      "cardinality": "low",
+      "patterns": {
+        "top_patterns": {
+          "#SWAWA": 310,
+          "A": 149,
+          "#S#ASWAWA": 41
+        },
+        "num_unique_patterns": 3,
+        "pattern_consistency_pct": 62.0,
+        "contains_email": false,
+        "contains_url": false,
+        "contains_phone": false,
+        "contains_currency": false,
+        "is_date_like": "False"
+      },
+      "quality_score": 1.0
+    },
+    "goods-title-link": {
+      "dtype": "object",
+      "non_null_count": 3930,
+      "null_count": 0,
+      "unique_count": 3685,
+      "missing_pct": 0.0,
+      "most_common": "Unknown",
+      "most_common_freq": 40,
+      "avg_length": 101.62,
+      "min_length": 7,
+      "max_length": 893,
+      "cardinality": "high",
+      "patterns": {
+        "top_patterns": {
+          "#AWAWAWAWA": 19,
+          "#AWAWAWAWAWA": 13,
+          "#AWAWAWAWAWAWA": 11,
+          "A": 8,
+          "#AWAWAWAWAWAWAWA": 8
+        },
+        "num_unique_patterns": 368,
+        "pattern_consistency_pct": 3.8,
+        "contains_email": false,
+        "contains_url": false,
+        "contains_phone": false,
+        "contains_currency": false,
+        "is_date_like": "False"
+      },
+      "quality_score": 1.0
+    }
+  },
+  "recommendations": [
+    "EXCELLENT: No major data quality issues detected!"
+  ],
+  "timestamp": "2025-11-10T11:01:19.279244",
+  "cardinality_analysis": {
+    "price": "medium",
+    "discount": "low",
+    "selling_proposition": "low",
+    "goods-title-link": "high"
+  },
+  "skewness_analysis": {},
+  "pattern_analysis": {
+    "price": {
+      "top_patterns": {
+        "S#S#": 500
+      },
+      "num_unique_patterns": 1,
+      "pattern_consistency_pct": 100.0,
+      "contains_email": false,
+      "contains_url": false,
+      "contains_phone": false,
+      "contains_currency": true,
+      "is_date_like": "False"
+    },
+    "discount": {
+      "top_patterns": {
+        "A": 336,
+        "S#S": 164
+      },
+      "num_unique_patterns": 2,
+      "pattern_consistency_pct": 67.2,
+      "contains_email": false,
+      "contains_url": false,
+      "contains_phone": false,
+      "contains_currency": false,
+      "is_date_like": "False"
+    },
+    "selling_proposition": {
+      "top_patterns": {
+        "#SWAWA": 310,
+        "A": 149,
+        "#S#ASWAWA": 41
+      },
+      "num_unique_patterns": 3,
+      "pattern_consistency_pct": 62.0,
+      "contains_email": false,
+      "contains_url": false,
+      "contains_phone": false,
+      "contains_currency": false,
+      "is_date_like": "False"
+    },
+    "goods-title-link": {
+      "top_patterns": {
+        "#AWAWAWAWA": 19,
+        "#AWAWAWAWAWA": 13,
+        "#AWAWAWAWAWAWA": 11,
+        "A": 8,
+        "#AWAWAWAWAWAWAWA": 8
+      },
+      "num_unique_patterns": 368,
+      "pattern_consistency_pct": 3.8,
+      "contains_email": false,
+      "contains_url": false,
+      "contains_phone": false,
+      "contains_currency": false,
+      "is_date_like": "False"
+    }
+  },
+  "consistency_issues": {},
+  "column_quality_scores": {
+    "price": 1.0,
+    "discount": 1.0,
+    "selling_proposition": 1.0,
+    "goods-title-link": 1.0
+  },
+  "outlier_details": {},
+  "proposed_actions": []
+}

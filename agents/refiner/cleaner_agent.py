@@ -1,79 +1,69 @@
+"""
+Refiner Agent - Automatic Data Cleaning
+"""
 import pandas as pd
 import numpy as np
+<<<<<<< Updated upstream
 from datetime import datetime
 from typing import Dict, List, Any, Tuple
 import logging
 
+=======
+from typing import Dict, List, Any
+from datetime import datetime
+>>>>>>> Stashed changes
 from orchestrator.types import CleaningReport
 
 
 class CleanerAgent:
-    """
-    Data Refiner Agent - Cleans and preprocesses data
-    """
+    """Automatically cleans data based on quality assessment"""
     
     def __init__(self, config: Dict[str, Any]):
         self.config = config
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self.missing_threshold = config.get('missing_threshold', 0.8)
+        self.outlier_method = config.get('outlier_method', 'clip')
+        self.actions: List[str] = []
+    
+    def clean_data(self, data: pd.DataFrame, report: Any = None):
+        """Automatically clean data and return cleaned data with report"""
+        self.actions = []
+        df = data.copy()
+        original_shape = df.shape
+        original_rows = len(df)
+        dropped_cols = []
+        missing_handled = {}
         
+<<<<<<< Updated upstream
     def clean_data(self, data: pd.DataFrame) -> Tuple[pd.DataFrame, CleaningReport]:
         """
         Clean and preprocess the input data
         """
         self.logger.info("Starting data cleaning process...")
+=======
+        df = self._remove_duplicates(df)
+        df, cols = self._drop_bad_columns(df)
+        dropped_cols.extend(cols)
+        df, missing_handled = self._impute_missing(df)
+        df = self._handle_outliers(df)
+        df = self._optimize_dtypes(df)
+>>>>>>> Stashed changes
         
-        original_shape = data.shape
-        actions_taken = []
-        columns_dropped = []
-        missing_values_handled = {}
+        rows_removed = original_rows - len(df)
+        cleaned_shape = df.shape
         
-        # Create a copy to avoid modifying original data
-        cleaned_data = data.copy()
-        
-        # Remove duplicates
-        if self.config.get('remove_duplicates', True):
-            before_dup = len(cleaned_data)
-            cleaned_data = cleaned_data.drop_duplicates()
-            after_dup = len(cleaned_data)
-            if before_dup != after_dup:
-                actions_taken.append(f"Removed {before_dup - after_dup} duplicate rows")
-        
-        # Handle missing values
-        cleaned_data, missing_actions = self._handle_missing_values(cleaned_data)
-        actions_taken.extend(missing_actions)
-        missing_values_handled = self._get_missing_value_summary(data, cleaned_data)
-        
-        # Handle outliers
-        if self.config.get('outlier_treatment', 'ignore') != 'ignore':
-            cleaned_data, outlier_actions = self._handle_outliers(cleaned_data)
-            actions_taken.extend(outlier_actions)
-        
-        # Drop columns with too many missing values
-        high_missing_cols = self._identify_high_missing_columns(data)
-        if high_missing_cols:
-            cleaned_data = cleaned_data.drop(columns=high_missing_cols)
-            columns_dropped.extend(high_missing_cols)
-            actions_taken.append(f"Dropped columns with >80% missing values: {high_missing_cols}")
-        
-        # Fix data types
-        cleaned_data, type_actions = self._optimize_data_types(cleaned_data)
-        actions_taken.extend(type_actions)
-        
-        rows_removed = original_shape[0] - cleaned_data.shape[0]
-        
-        report = CleaningReport(
+        cleaning_report = CleaningReport(
             original_shape=original_shape,
-            cleaned_shape=cleaned_data.shape,
-            actions_taken=actions_taken,
-            columns_dropped=columns_dropped,
+            cleaned_shape=cleaned_shape,
+            actions_taken=self.actions,
+            columns_dropped=dropped_cols,
             rows_removed=rows_removed,
-            missing_values_handled=missing_values_handled,
+            missing_values_handled=missing_handled,
             timestamp=datetime.now().isoformat()
         )
         
-        self.logger.info(f"Data cleaning completed. Shape: {original_shape} -> {cleaned_data.shape}")
-        return cleaned_data, report
+        return df, cleaning_report
     
+<<<<<<< Updated upstream
     def _handle_missing_values(self, data: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
         """Handle missing values based on configuration"""
         actions = []
@@ -81,39 +71,48 @@ class CleanerAgent:
         
         for col in data.columns:
             missing_count = data[col].isnull().sum()
+=======
+    def _remove_duplicates(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Remove exact duplicate rows"""
+        initial_rows = len(df)
+        df_clean = df.drop_duplicates()
+        removed = initial_rows - len(df_clean)
+        if removed > 0:
+            self.actions.append(f'Removed {removed} duplicate rows')
+        return df_clean
+    
+    def _drop_bad_columns(self, df: pd.DataFrame):
+        """Drop columns with >80% missing data"""
+        dropped_cols = []
+        for col in df.columns:
+            missing_pct = df[col].isnull().sum() / len(df)
+            if missing_pct > self.missing_threshold:
+                dropped_cols.append(col)
+        if dropped_cols:
+            self.actions.append(f'Dropped {len(dropped_cols)} columns with >{self.missing_threshold*100}% missing')
+            df = df.drop(columns=dropped_cols)
+        return df, dropped_cols
+    
+    def _impute_missing(self, df: pd.DataFrame):
+        """Impute missing values"""
+        missing_handled = {}
+        for col in df.columns:
+            missing_count = df[col].isnull().sum()
+>>>>>>> Stashed changes
             if missing_count == 0:
                 continue
-                
-            missing_pct = (missing_count / len(data)) * 100
-            
-            if handle_method == 'auto':
-                if missing_pct > 80:
-                    # Will be handled in column dropping
-                    continue
-                elif data[col].dtype in ['int64', 'float64']:
-                    # Fill numeric columns with median
-                    data[col] = data[col].fillna(data[col].median())
-                    actions.append(f"Filled missing values in '{col}' with median")
-                else:
-                    # Fill categorical columns with mode
-                    mode_value = data[col].mode()[0] if not data[col].mode().empty else 'Unknown'
-                    data[col] = data[col].fillna(mode_value)
-                    actions.append(f"Filled missing values in '{col}' with mode")
-            
-            elif handle_method == 'drop':
-                data = data.dropna(subset=[col])
-                actions.append(f"Dropped rows with missing values in '{col}'")
-            
-            elif handle_method == 'fill':
-                if data[col].dtype in ['int64', 'float64']:
-                    data[col] = data[col].fillna(0)
-                    actions.append(f"Filled missing values in '{col}' with 0")
-                else:
-                    data[col] = data[col].fillna('Unknown')
-                    actions.append(f"Filled missing values in '{col}' with 'Unknown'")
-        
-        return data, actions
+            if pd.api.types.is_numeric_dtype(df[col]):
+                median_val = df[col].median()
+                df[col] = df[col].fillna(median_val)
+                missing_handled[col] = f'median ({missing_count} values)'
+            else:
+                df[col] = df[col].fillna('Unknown')
+                missing_handled[col] = f'constant ({missing_count} values)'
+        if missing_handled:
+            self.actions.append(f'Imputed {len(missing_handled)} columns')
+        return df, missing_handled
     
+<<<<<<< Updated upstream
     def _handle_outliers(self, data: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
         """Handle outliers based on configuration"""
         actions = []
@@ -124,23 +123,27 @@ class CleanerAgent:
         for col in numeric_cols:
             Q1 = data[col].quantile(0.25)
             Q3 = data[col].quantile(0.75)
+=======
+    def _handle_outliers(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Handle outliers using IQR method"""
+        outlier_count = 0
+        for col in df.select_dtypes(include=[np.number]).columns:
+            Q1 = df[col].quantile(0.25)
+            Q3 = df[col].quantile(0.75)
+>>>>>>> Stashed changes
             IQR = Q3 - Q1
-            lower_bound = Q1 - 1.5 * IQR
-            upper_bound = Q3 + 1.5 * IQR
-            
-            outlier_mask = (data[col] < lower_bound) | (data[col] > upper_bound)
-            outlier_count = outlier_mask.sum()
-            
-            if outlier_count > 0:
-                if treatment == 'remove':
-                    data = data[~outlier_mask]
-                    actions.append(f"Removed {outlier_count} outliers from '{col}'")
-                elif treatment == 'clip':
-                    data[col] = data[col].clip(lower=lower_bound, upper=upper_bound)
-                    actions.append(f"Clipped {outlier_count} outliers in '{col}'")
-        
-        return data, actions
+            if IQR > 0:
+                lower_bound = Q1 - 1.5 * IQR
+                upper_bound = Q3 + 1.5 * IQR
+                outliers = ((df[col] < lower_bound) | (df[col] > upper_bound)).sum()
+                if outliers > 0:
+                    df[col] = df[col].clip(lower_bound, upper_bound)
+                    outlier_count += outliers
+        if outlier_count > 0:
+            self.actions.append(f'Handled {outlier_count} outliers')
+        return df
     
+<<<<<<< Updated upstream
     def _identify_high_missing_columns(self, data: pd.DataFrame, threshold: float = 0.8) -> List[str]:
         """Identify columns with high percentage of missing values"""
         missing_pct = data.isnull().sum() / len(data)
@@ -200,3 +203,8 @@ class CleanerAgent:
                     summary[col] = "Column dropped"
         
         return summary
+=======
+    def _optimize_dtypes(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Optimize data types"""
+        return df
+>>>>>>> Stashed changes

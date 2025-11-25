@@ -1,10 +1,12 @@
-import pandas as pd
-import yaml
 import logging
 import os
-from datetime import datetime
-from typing import Dict, Any, Optional, List
 import time
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+import pandas as pd
+import yaml
+from pandas.errors import EmptyDataError
 
 from .types import PipelineResult, AgentStatus
 from agents.inspector.inspector_agent import InspectorAgent
@@ -140,23 +142,36 @@ class DataPipeline:
                 for sep in separators:
                     try:
                         data = pd.read_csv(file_path, encoding=encoding, sep=sep)
-                        if data.shape[1] > 1:  # Successfully parsed with multiple columns
+                        if data.shape[1] >= 1:
                             self.logger.info(f"Loaded CSV with encoding: {encoding}, separator: '{sep}'")
-                            return data
+                            return self._ensure_non_empty(data, file_path)
+                    except EmptyDataError as exc:
+                        raise ValueError(f"Input file '{file_path}' is empty or has no parsable columns") from exc
                     except Exception:
                         continue
             
-            # If all attempts fail, try with default settings
-            return pd.read_csv(file_path)
+            try:
+                data = pd.read_csv(file_path)
+                return self._ensure_non_empty(data, file_path)
+            except EmptyDataError as exc:
+                raise ValueError(f"Input file '{file_path}' is empty or has no parsable columns") from exc
             
         elif file_extension in ['.xlsx', '.xls']:
-            return pd.read_excel(file_path)
+            data = pd.read_excel(file_path)
         elif file_extension == '.json':
-            return pd.read_json(file_path)
+            data = pd.read_json(file_path)
         elif file_extension == '.parquet':
-            return pd.read_parquet(file_path)
+            data = pd.read_parquet(file_path)
         else:
             raise ValueError(f"Unsupported file format: {file_extension}")
+
+        return self._ensure_non_empty(data, file_path)
+
+    def _ensure_non_empty(self, data: pd.DataFrame, file_path: str) -> pd.DataFrame:
+        """Raise a descriptive error if the dataframe is empty."""
+        if data.empty:
+            raise ValueError(f"Input file '{file_path}' is empty after parsing. Please provide a file with data.")
+        return data
     
     def _save_cleaned_data(self, data: pd.DataFrame, original_file: str) -> str:
         """Save cleaned data to output directory"""

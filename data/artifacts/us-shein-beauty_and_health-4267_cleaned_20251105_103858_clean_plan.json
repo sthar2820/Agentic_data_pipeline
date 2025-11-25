@@ -1,8 +1,0 @@
-[
-  {
-    "column": "color-count",
-    "action": "drop_column",
-    "reason": "constant_value",
-    "priority": "low"
-  }
-]

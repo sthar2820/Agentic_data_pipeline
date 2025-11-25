@@ -48,6 +48,9 @@ data/artifacts/*.log
 data/artifacts/*.csv
 data/artifacts/*.pdf
 
+# Documentation files
+*.md
+
 # Jupyter Notebooks
 .ipynb_checkpoints
 *.ipynb
