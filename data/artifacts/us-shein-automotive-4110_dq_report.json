@@ -1,0 +1,157 @@
+{
+  "overall_quality": {},
+  "missing_values": {
+    "goods-title-link--jump": 99.03,
+    "goods-title-link--jump href": 99.03,
+    "price": 0.0,
+    "discount": 66.59,
+    "selling_proposition": 30.06,
+    "goods-title-link": 0.97
+  },
+  "data_types": {
+    "goods-title-link--jump": "object",
+    "goods-title-link--jump href": "object",
+    "price": "object",
+    "discount": "object",
+    "selling_proposition": "object",
+    "goods-title-link": "object"
+  },
+  "duplicate_count": 179,
+  "outlier_count": 0,
+  "column_stats": {
+    "goods-title-link--jump": {
+      "dtype": "object",
+      "non_null_count": 40,
+      "null_count": 4069,
+      "unique_count": 40,
+      "missing_pct": 99.03,
+      "cardinality": "low",
+      "quality_score": 0.604
+    },
+    "goods-title-link--jump href": {
+      "dtype": "object",
+      "non_null_count": 40,
+      "null_count": 4069,
+      "unique_count": 40,
+      "missing_pct": 99.03,
+      "cardinality": "low",
+      "quality_score": 0.604
+    },
+    "price": {
+      "dtype": "object",
+      "non_null_count": 4109,
+      "null_count": 0,
+      "unique_count": 1022,
+      "missing_pct": 0.0,
+      "most_common": "$1.70",
+      "most_common_freq": 125,
+      "avg_length": 5.25,
+      "min_length": 5,
+      "max_length": 7,
+      "cardinality": "medium",
+      "patterns": {
+        "top_patterns": {
+          "S#S#": 500
+        },
+        "num_unique_patterns": 1,
+        "pattern_consistency_pct": 100.0,
+        "contains_email": false,
+        "contains_url": false,
+        "contains_phone": false,
+        "contains_currency": true,
+        "is_date_like": "False"
+      },
+      "quality_score": 1.0
+    },
+    "discount": {
+      "dtype": "object",
+      "non_null_count": 1373,
+      "null_count": 2736,
+      "unique_count": 77,
+      "missing_pct": 66.59,
+      "cardinality": "low",
+      "quality_score": 0.734
+    },
+    "selling_proposition": {
+      "dtype": "object",
+      "non_null_count": 2874,
+      "null_count": 1235,
+      "unique_count": 58,
+      "missing_pct": 30.06,
+      "cardinality": "low",
+      "quality_score": 0.88
+    },
+    "goods-title-link": {
+      "dtype": "object",
+      "non_null_count": 4069,
+      "null_count": 40,
+      "unique_count": 3684,
+      "missing_pct": 0.97,
+      "cardinality": "high",
+      "quality_score": 0.996
+    }
+  },
+  "recommendations": [
+    "CRITICAL: >70% missing in 2 column(s): goods-title-link--jump, goods-title-link--jump href",
+    "HIGH: Remove 179 duplicate rows (4.4%).",
+    "HIGH: Handle 2 column(s) with 30-70% missing: discount, selling_proposition"
+  ],
+  "timestamp": "2025-11-25T17:27:24.584563",
+  "cardinality_analysis": {
+    "goods-title-link--jump": "low",
+    "goods-title-link--jump href": "low",
+    "price": "medium",
+    "discount": "low",
+    "selling_proposition": "low",
+    "goods-title-link": "high"
+  },
+  "skewness_analysis": {},
+  "pattern_analysis": {
+    "price": {
+      "top_patterns": {
+        "S#S#": 500
+      },
+      "num_unique_patterns": 1,
+      "pattern_consistency_pct": 100.0,
+      "contains_email": false,
+      "contains_url": false,
+      "contains_phone": false,
+      "contains_currency": true,
+      "is_date_like": "False"
+    }
+  },
+  "consistency_issues": {},
+  "column_quality_scores": {
+    "goods-title-link--jump": 0.604,
+    "goods-title-link--jump href": 0.604,
+    "price": 1.0,
+    "discount": 0.734,
+    "selling_proposition": 0.88,
+    "goods-title-link": 0.996
+  },
+  "outlier_details": {},
+  "proposed_actions": [
+    {
+      "column": "goods-title-link--jump",
+      "action": "drop_column",
+      "reason": "missing>70%"
+    },
+    {
+      "column": "goods-title-link--jump href",
+      "action": "drop_column",
+      "reason": "missing>70%"
+    },
+    {
+      "column": "discount",
+      "action": "impute",
+      "strategy": "advanced",
+      "reason": "missing 30\u201370%"
+    },
+    {
+      "column": "selling_proposition",
+      "action": "impute",
+      "strategy": "advanced",
+      "reason": "missing 30\u201370%"
+    }
+  ]
+}
