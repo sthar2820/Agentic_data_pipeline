@@ -1,33 +1,36 @@
 """
 Utility functions for Streamlit UI
+Handles file operations, data loading, and visualization management
 """
 
 import os
-import json
 import pandas as pd
+import json
 from pathlib import Path
 from typing import Optional, Dict, Any, List
-from datetime import datetime
+import plotly.graph_objects as go
+import plotly.express as px
 
 
-def save_uploaded_file(uploaded_file, target_dir: str) -> str:
+def save_uploaded_file(uploaded_file, destination_folder: str = "data/raw") -> str:
     """
-    Save uploaded file to target directory
+    Save uploaded file to the specified folder
 
     Args:
         uploaded_file: Streamlit UploadedFile object
-        target_dir: Directory to save file
+        destination_folder: Folder path to save the file
 
     Returns:
-        Path to saved file
+        str: Full path to the saved file
     """
-    # Create directory if it doesn't exist
-    os.makedirs(target_dir, exist_ok=True)
+    # Create destination folder if it doesn't exist
+    os.makedirs(destination_folder, exist_ok=True)
+
+    # Create file path
+    file_path = os.path.join(destination_folder, uploaded_file.name)
 
     # Save file
-    file_path = os.path.join(target_dir, uploaded_file.name)
-
-    with open(file_path, 'wb') as f:
+    with open(file_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
 
     return file_path
@@ -35,40 +38,31 @@ def save_uploaded_file(uploaded_file, target_dir: str) -> str:
 
 def load_pipeline_results(artifacts_dir: str = "data/artifacts") -> Optional[Dict[str, Any]]:
     """
-    Load the latest pipeline results from artifacts directory
+    Load the most recent pipeline results from artifacts directory
 
     Args:
-        artifacts_dir: Directory containing artifacts
+        artifacts_dir: Directory containing pipeline artifacts
 
     Returns:
-        Dictionary with pipeline results or None
+        Dict containing pipeline results or None if not found
     """
-    artifacts_path = Path(artifacts_dir)
+    try:
+        artifacts_path = Path(artifacts_dir)
 
-    if not artifacts_path.exists():
+        # Find the most recent quality report
+        report_files = list(artifacts_path.glob("*_dq_report.json"))
+        if not report_files:
+            return None
+
+        latest_report = max(report_files, key=os.path.getctime)
+
+        with open(latest_report, 'r') as f:
+            results = json.load(f)
+
+        return results
+    except Exception as e:
+        print(f"Error loading pipeline results: {e}")
         return None
-
-    results = {}
-
-    # Load data quality report
-    dq_files = list(artifacts_path.glob("*_dq_report.json"))
-    if dq_files:
-        latest_dq = max(dq_files, key=os.path.getctime)
-        with open(latest_dq, 'r') as f:
-            results['quality_report'] = json.load(f)
-
-    # Load cleaning plan
-    clean_files = list(artifacts_path.glob("*_clean_plan.json"))
-    if clean_files:
-        latest_clean = max(clean_files, key=os.path.getctime)
-        with open(latest_clean, 'r') as f:
-            results['clean_plan'] = json.load(f)
-
-    # Get visualization files
-    viz_files = list(artifacts_path.glob("*.png")) + list(artifacts_path.glob("*.html"))
-    results['visualizations'] = [str(f) for f in viz_files]
-
-    return results if results else None
 
 
 def get_available_visualizations(artifacts_dir: str = "data/artifacts") -> List[str]:
@@ -76,85 +70,146 @@ def get_available_visualizations(artifacts_dir: str = "data/artifacts") -> List[
     Get list of available visualization files
 
     Args:
-        artifacts_dir: Directory containing artifacts
+        artifacts_dir: Directory containing visualization artifacts
 
     Returns:
         List of visualization file paths
     """
-    artifacts_path = Path(artifacts_dir)
+    try:
+        artifacts_path = Path(artifacts_dir)
 
-    if not artifacts_path.exists():
+        # Find all PNG visualization files
+        viz_files = list(artifacts_path.glob("*.png"))
+
+        # Sort by creation time (newest first)
+        viz_files.sort(key=os.path.getctime, reverse=True)
+
+        return [str(f) for f in viz_files]
+    except Exception as e:
+        print(f"Error getting visualizations: {e}")
         return []
-
-    viz_files = []
-
-    # Get image files
-    for ext in ['*.png', '*.jpg', '*.jpeg']:
-        viz_files.extend(artifacts_path.glob(ext))
-
-    # Sort by creation time
-    viz_files.sort(key=os.path.getctime, reverse=True)
-
-    return [str(f) for f in viz_files]
 
 
 def create_custom_visualization(
     data: pd.DataFrame,
-    chart_type: str,
-    params: Dict[str, Any]
-) -> Optional[Any]:
+    viz_type: str,
+    x_col: Optional[str] = None,
+    y_col: Optional[str] = None,
+    color_col: Optional[str] = None,
+    **kwargs
+) -> Optional[go.Figure]:
     """
-    Create custom visualization based on parameters
+    Create a custom Plotly visualization
 
     Args:
         data: DataFrame to visualize
-        chart_type: Type of chart (scatter, bar, line, etc.)
-        params: Chart parameters
+        viz_type: Type of visualization (scatter, line, bar, histogram, box, etc.)
+        x_col: Column for x-axis
+        y_col: Column for y-axis
+        color_col: Column for color grouping
+        **kwargs: Additional parameters for Plotly
 
     Returns:
-        Plotly figure or None
+        Plotly Figure object or None if error
     """
-    import plotly.express as px
-
     try:
-        if chart_type == 'scatter':
+        if viz_type == "scatter":
             fig = px.scatter(
                 data,
-                x=params.get('x'),
-                y=params.get('y'),
-                color=params.get('color'),
-                title=params.get('title', 'Scatter Plot')
+                x=x_col,
+                y=y_col,
+                color=color_col,
+                title=f"{x_col} vs {y_col}" if x_col and y_col else "Scatter Plot",
+                template="plotly_white",
+                **kwargs
             )
-        elif chart_type == 'bar':
-            fig = px.bar(
-                data,
-                x=params.get('x'),
-                y=params.get('y'),
-                title=params.get('title', 'Bar Chart')
-            )
-        elif chart_type == 'line':
+        elif viz_type == "line":
             fig = px.line(
                 data,
-                x=params.get('x'),
-                y=params.get('y'),
-                title=params.get('title', 'Line Chart')
+                x=x_col,
+                y=y_col,
+                color=color_col,
+                title=f"{y_col} over {x_col}" if x_col and y_col else "Line Chart",
+                template="plotly_white",
+                **kwargs
             )
-        elif chart_type == 'histogram':
+        elif viz_type == "bar":
+            fig = px.bar(
+                data,
+                x=x_col,
+                y=y_col,
+                color=color_col,
+                title=f"{x_col} Bar Chart" if x_col else "Bar Chart",
+                template="plotly_white",
+                **kwargs
+            )
+        elif viz_type == "histogram":
             fig = px.histogram(
                 data,
-                x=params.get('x'),
-                nbins=params.get('bins', 30),
-                title=params.get('title', 'Histogram')
+                x=x_col,
+                color=color_col,
+                title=f"Distribution of {x_col}" if x_col else "Histogram",
+                template="plotly_white",
+                **kwargs
             )
-        elif chart_type == 'box':
+        elif viz_type == "box":
             fig = px.box(
                 data,
-                x=params.get('x'),
-                y=params.get('y'),
-                title=params.get('title', 'Box Plot')
+                x=x_col,
+                y=y_col,
+                color=color_col,
+                title=f"Box Plot of {y_col}" if y_col else "Box Plot",
+                template="plotly_white",
+                **kwargs
+            )
+        elif viz_type == "violin":
+            fig = px.violin(
+                data,
+                x=x_col,
+                y=y_col,
+                color=color_col,
+                title=f"Violin Plot of {y_col}" if y_col else "Violin Plot",
+                template="plotly_white",
+                box=True,
+                **kwargs
+            )
+        elif viz_type == "heatmap":
+            # For heatmap, use correlation matrix of numeric columns
+            numeric_cols = data.select_dtypes(include=['number']).columns.tolist()
+            if len(numeric_cols) < 2:
+                return None
+
+            corr_matrix = data[numeric_cols].corr()
+            fig = px.imshow(
+                corr_matrix,
+                text_auto='.2f',
+                aspect='auto',
+                title="Correlation Heatmap",
+                template="plotly_white",
+                color_continuous_scale='RdBu_r',
+                **kwargs
+            )
+        elif viz_type == "pie":
+            if not x_col:
+                return None
+
+            value_counts = data[x_col].value_counts().head(10)
+            fig = px.pie(
+                values=value_counts.values,
+                names=value_counts.index,
+                title=f"Distribution of {x_col}",
+                template="plotly_white",
+                **kwargs
             )
         else:
             return None
+
+        # Update layout for better appearance
+        fig.update_layout(
+            font=dict(size=12),
+            hovermode='closest',
+            showlegend=True
+        )
 
         return fig
 
@@ -163,21 +218,48 @@ def create_custom_visualization(
         return None
 
 
+def load_cleaned_data(cleaned_dir: str = "data/cleaned") -> Optional[pd.DataFrame]:
+    """
+    Load the most recent cleaned data file
+
+    Args:
+        cleaned_dir: Directory containing cleaned data files
+
+    Returns:
+        DataFrame or None if not found
+    """
+    try:
+        cleaned_path = Path(cleaned_dir)
+
+        # Find the most recent cleaned CSV file
+        csv_files = list(cleaned_path.glob("*.csv"))
+        if not csv_files:
+            return None
+
+        latest_csv = max(csv_files, key=os.path.getctime)
+
+        return pd.read_csv(latest_csv)
+
+    except Exception as e:
+        print(f"Error loading cleaned data: {e}")
+        return None
+
+
 def format_file_size(size_bytes: int) -> str:
     """
     Format file size in human-readable format
 
     Args:
-        size_bytes: Size in bytes
+        size_bytes: File size in bytes
 
     Returns:
         Formatted string (e.g., "1.5 MB")
     """
     for unit in ['B', 'KB', 'MB', 'GB']:
         if size_bytes < 1024.0:
-            return f"{size_bytes:.1f} {unit}"
+            return f"{size_bytes:.2f} {unit}"
         size_bytes /= 1024.0
-    return f"{size_bytes:.1f} TB"
+    return f"{size_bytes:.2f} TB"
 
 
 def get_column_info(data: pd.DataFrame) -> Dict[str, Any]:
@@ -188,168 +270,41 @@ def get_column_info(data: pd.DataFrame) -> Dict[str, Any]:
         data: DataFrame to analyze
 
     Returns:
-        Dictionary with column information
+        Dict with column information
     """
     info = {
         'total_columns': len(data.columns),
         'numeric_columns': data.select_dtypes(include=['number']).columns.tolist(),
         'categorical_columns': data.select_dtypes(include=['object', 'category']).columns.tolist(),
         'datetime_columns': data.select_dtypes(include=['datetime']).columns.tolist(),
-        'column_types': data.dtypes.to_dict(),
-        'missing_counts': data.isnull().sum().to_dict(),
-        'unique_counts': data.nunique().to_dict()
+        'missing_values': data.isnull().sum().to_dict(),
+        'dtypes': data.dtypes.astype(str).to_dict()
     }
-
     return info
 
 
-def create_summary_stats(data: pd.DataFrame) -> pd.DataFrame:
+def export_visualization(fig: go.Figure, filename: str, format: str = 'png') -> bool:
     """
-    Create summary statistics DataFrame
+    Export Plotly figure to file
 
     Args:
-        data: DataFrame to summarize
-
-    Returns:
-        Summary statistics DataFrame
-    """
-    numeric_data = data.select_dtypes(include=['number'])
-
-    if numeric_data.empty:
-        return pd.DataFrame()
-
-    summary = numeric_data.describe().T
-    summary['missing'] = data[numeric_data.columns].isnull().sum()
-    summary['missing_pct'] = (summary['missing'] / len(data) * 100).round(2)
-
-    return summary
-
-
-def export_to_excel(data: pd.DataFrame, filename: str) -> str:
-    """
-    Export DataFrame to Excel file
-
-    Args:
-        data: DataFrame to export
+        fig: Plotly Figure object
         filename: Output filename
+        format: Export format ('png', 'html', 'svg')
 
     Returns:
-        Path to exported file
+        bool: True if successful, False otherwise
     """
-    output_dir = "data/exports"
-    os.makedirs(output_dir, exist_ok=True)
-
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_path = os.path.join(output_dir, f"{filename}_{timestamp}.xlsx")
-
-    data.to_excel(output_path, index=False)
-
-    return output_path
-
-
-def get_data_quality_summary(quality_report: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Extract key metrics from quality report
-
-    Args:
-        quality_report: Quality report dictionary
-
-    Returns:
-        Summary dictionary
-    """
-    if not quality_report:
-        return {}
-
-    summary = {
-        'overall_quality': quality_report.get('overall_quality', 'unknown'),
-        'total_missing': sum(quality_report.get('missing_values', {}).values()),
-        'duplicate_count': quality_report.get('duplicate_count', 0),
-        'outlier_count': quality_report.get('outlier_count', 0),
-        'columns_with_issues': len([
-            k for k, v in quality_report.get('missing_values', {}).items() if v > 0
-        ])
-    }
-
-    return summary
-
-
-def parse_cleaning_actions(actions: List[str]) -> Dict[str, int]:
-    """
-    Parse cleaning actions into categories
-
-    Args:
-        actions: List of action strings
-
-    Returns:
-        Dictionary with action counts
-    """
-    action_counts = {
-        'dropped_columns': 0,
-        'imputed': 0,
-        'removed_duplicates': 0,
-        'handled_outliers': 0,
-        'converted_types': 0
-    }
-
-    for action in actions:
-        action_lower = action.lower()
-
-        if 'drop' in action_lower and 'column' in action_lower:
-            action_counts['dropped_columns'] += 1
-        elif 'impute' in action_lower or 'fill' in action_lower:
-            action_counts['imputed'] += 1
-        elif 'duplicate' in action_lower:
-            action_counts['removed_duplicates'] += 1
-        elif 'outlier' in action_lower:
-            action_counts['handled_outliers'] += 1
-        elif 'convert' in action_lower or 'type' in action_lower:
-            action_counts['converted_types'] += 1
-
-    return action_counts
-
-
-def generate_recommendations(quality_report: Dict[str, Any], cleaning_report: Dict[str, Any]) -> List[str]:
-    """
-    Generate recommendations based on pipeline results
-
-    Args:
-        quality_report: Quality assessment report
-        cleaning_report: Cleaning report
-
-    Returns:
-        List of recommendation strings
-    """
-    recommendations = []
-
-    # Quality-based recommendations
-    if quality_report:
-        quality = quality_report.get('overall_quality', '').lower()
-
-        if quality == 'poor':
-            recommendations.append("⚠️ Data quality is poor. Consider additional manual review.")
-        elif quality == 'fair':
-            recommendations.append("ℹ️ Data quality is fair. Some issues remain that may need attention.")
-
-        missing_pct = sum(quality_report.get('missing_values', {}).values()) / (
-            len(quality_report.get('missing_values', {})) + 1
-        )
-
-        if missing_pct > 0.3:
-            recommendations.append("📊 High missing data percentage. Consider data collection improvements.")
-
-        if quality_report.get('duplicate_count', 0) > 0:
-            recommendations.append("🔄 Duplicates found. Review for data entry issues.")
-
-    # Cleaning-based recommendations
-    if cleaning_report:
-        if cleaning_report.get('columns_dropped', 0) > 0:
-            recommendations.append(f"📉 {cleaning_report['columns_dropped']} columns were dropped. Review if needed.")
-
-        if cleaning_report.get('rows_removed', 0) > 0:
-            recommendations.append(f"🗑️ {cleaning_report['rows_removed']} rows were removed. Verify data loss is acceptable.")
-
-    # General recommendations
-    if not recommendations:
-        recommendations.append("✅ Data appears to be in good condition. Proceed with analysis.")
-
-    return recommendations
+    try:
+        if format == 'html':
+            fig.write_html(filename)
+        elif format == 'png':
+            fig.write_image(filename)
+        elif format == 'svg':
+            fig.write_image(filename, format='svg')
+        else:
+            return False
+        return True
+    except Exception as e:
+        print(f"Error exporting visualization: {e}")
+        return False

@@ -1,78 +1,74 @@
-pipeline:
-  name: "Agentic Data Pipeline"
-  version: "1.0.0"
-  
 agents:
-  inspector:
-    name: "Data Inspector Agent"
-    description: "Analyzes raw data quality and structure"
+  anomaly_detector:
+    config:
+      contamination: auto
+      ensemble_voting: majority
+      methods:
+      - isolation_forest
+      - lof
+    description: ML-based anomaly detection using ensemble methods
     enabled: true
+    name: Anomaly Detection Agent
+  feature_engineer:
+    config:
+      categorical_features: true
+      datetime_features: true
+      interaction_features: true
+      max_categorical_unique: 50
+      numeric_features: true
+      polynomial_features: false
+    description: Automated feature generation and transformation
+    enabled: true
+    name: Feature Engineering Agent
+  insight:
+    config:
+      correlation_analysis: true
+      export_format:
+      - html
+      - pdf
+      generate_plots: true
+      summary_statistics: true
+    description: Generates insights and visualizations
+    enabled: true
+    name: Insight Agent
+  inspector:
     config:
       max_rows_sample: 1000
       quality_checks:
-        - missing_values
-        - data_types
-        - duplicates
-        - outliers
-        - column_statistics
-  
+      - missing_values
+      - data_types
+      - duplicates
+      - outliers
+      - column_statistics
+    description: Analyzes raw data quality and structure
+    enabled: true
+    name: Data Inspector Agent
   refiner:
-    name: "Data Refiner Agent"
-    description: "Cleans and preprocesses data"
-    enabled: true  # ENABLED - Uses Inspector's recommendations
     config:
-      handle_missing: "auto"  # auto, drop, fill, interpolate
+      encoding: utf-8
+      handle_missing: auto
+      outlier_treatment: clip
       remove_duplicates: true
-      outlier_treatment: "clip"  # clip, remove, ignore
-      encoding: "utf-8"
-  
-  insight:
-    name: "Insight Agent"
-    description: "Generates insights and visualizations"
-    enabled: true  # ENABLED - Generates visualizations from cleaned data
-    config:
-      generate_plots: true
-      correlation_analysis: true
-      summary_statistics: true
-      export_format: ["html", "pdf"]
-
-  anomaly_detector:
-    name: "Anomaly Detection Agent"
-    description: "ML-based anomaly detection using ensemble methods"
-    enabled: true  # NEW - Detects anomalies using Isolation Forest, LOF, etc.
-    config:
-      methods: ["isolation_forest", "lof"]  # Options: isolation_forest, lof, elliptic_envelope
-      contamination: "auto"  # 'auto' or float (e.g., 0.1 for 10% expected anomalies)
-      ensemble_voting: "majority"  # Options: majority, unanimous, any
-
-  feature_engineer:
-    name: "Feature Engineering Agent"
-    description: "Automated feature generation and transformation"
-    enabled: true  # ENABLED - Automated feature engineering for ML workflows
-    config:
-      datetime_features: true
-      numeric_features: true
-      categorical_features: true
-      interaction_features: true  # Advanced: creates feature interactions
-      polynomial_features: false   # Advanced: creates polynomial features (keep disabled for performance)
-      max_categorical_unique: 50
-
+    description: Cleans and preprocesses data
+    enabled: true
+    name: Data Refiner Agent
   reporter:
-    name: "Report Generation Agent"
-    description: "Generates comprehensive HTML reports"
-    enabled: true  # NEW - Creates executive-ready reports
     config:
       executive_summary: true
-      include_visualizations: true
+      format: html
       include_recommendations: true
-      format: "html"
-
+      include_visualizations: true
+    description: Generates comprehensive HTML reports
+    enabled: true
+    name: Report Generation Agent
 data:
-  input_path: "data/raw"
-  output_path: "data/cleaned"
-  artifacts_path: "data/artifacts"
-  
+  artifacts_path: data/artifacts
+  input_path: data/raw
+  output_path: data/cleaned
 logging:
-  level: "INFO"
-  file: "data/artifacts/pipeline.log"
-  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: data/artifacts/pipeline.log
+  format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+  level: INFO
+pipeline:
+  name: Agentic Data Pipeline
+  version: 1.0.0

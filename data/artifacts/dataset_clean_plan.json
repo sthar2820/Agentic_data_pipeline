@@ -10,15 +10,24 @@
     "reason": "missing>70%"
   },
   {
+    "column": "selling_proposition",
+    "action": "impute",
+    "strategy": "simple",
+    "reason": "missing 10\u201330%"
+  },
+  {
     "column": "discount",
     "action": "impute",
     "strategy": "advanced",
     "reason": "missing 30\u201370%"
   },
   {
-    "column": "selling_proposition",
-    "action": "impute",
-    "strategy": "advanced",
-    "reason": "missing 30\u201370%"
+    "column": "color-count",
+    "action": "drop_column",
+    "reason": "missing>70%"
+  },
+  {
+    "column": "goods-title-link",
+    "action": "flag_id"
   }
 ]
