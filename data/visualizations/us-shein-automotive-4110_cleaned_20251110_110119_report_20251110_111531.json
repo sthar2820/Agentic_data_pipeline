@@ -1,0 +1,51 @@
+{
+  "metadata": {
+    "filename": "us-shein-automotive-4110_cleaned_20251110_110119",
+    "timestamp": "2025-11-10T11:15:33.277011",
+    "shape": [
+      3930,
+      4
+    ],
+    "memory_mb": 1.3431005477905273
+  },
+  "quality_metrics": {
+    "complete_rows_pct": 100.0,
+    "missing_cells": 0,
+    "duplicate_rows": 0,
+    "overall_completeness_pct": 100.0
+  },
+  "columns": {
+    "price": {
+      "dtype": "object",
+      "unique_values": 1022,
+      "missing_count": 0,
+      "missing_pct": 0.0,
+      "completeness_pct": 100.0,
+      "quality_grade": "\u2605\u2605\u2605\u2605\u2605"
+    },
+    "discount": {
+      "dtype": "object",
+      "unique_values": 78,
+      "missing_count": 0,
+      "missing_pct": 0.0,
+      "completeness_pct": 100.0,
+      "quality_grade": "\u2605\u2605\u2605\u2605\u2605"
+    },
+    "selling_proposition": {
+      "dtype": "object",
+      "unique_values": 59,
+      "missing_count": 0,
+      "missing_pct": 0.0,
+      "completeness_pct": 100.0,
+      "quality_grade": "\u2605\u2605\u2605\u2605\u2605"
+    },
+    "goods-title-link": {
+      "dtype": "object",
+      "unique_values": 3685,
+      "missing_count": 0,
+      "missing_pct": 0.0,
+      "completeness_pct": 100.0,
+      "quality_grade": "\u2605\u2605\u2605\u2605\u2605"
+    }
+  }
+}
