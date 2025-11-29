@@ -1,62 +1,51 @@
 {
   "overall_quality": {},
   "missing_values": {
-    "goods-title-link--jump": 99.14,
-    "goods-title-link--jump href": 99.14,
-    "selling_proposition": 21.01,
+    "goods-title-link--jump": 99.03,
+    "goods-title-link--jump href": 99.03,
     "price": 0.0,
-    "discount": 36.85,
-    "color-count": 75.38,
-    "goods-title-link": 0.86
+    "discount": 66.59,
+    "selling_proposition": 30.06,
+    "goods-title-link": 0.97
   },
   "data_types": {
     "goods-title-link--jump": "object",
     "goods-title-link--jump href": "object",
-    "selling_proposition": "object",
     "price": "object",
     "discount": "object",
-    "color-count": "float64",
+    "selling_proposition": "object",
     "goods-title-link": "object"
   },
-  "duplicate_count": 18,
-  "outlier_count": 39,
+  "duplicate_count": 179,
+  "outlier_count": 0,
   "column_stats": {
     "goods-title-link--jump": {
       "dtype": "object",
-      "non_null_count": 38,
-      "null_count": 4394,
-      "unique_count": 38,
-      "missing_pct": 99.14,
+      "non_null_count": 40,
+      "null_count": 4069,
+      "unique_count": 40,
+      "missing_pct": 99.03,
       "cardinality": "low",
-      "quality_score": 0.603
+      "quality_score": 0.604
     },
     "goods-title-link--jump href": {
       "dtype": "object",
-      "non_null_count": 38,
-      "null_count": 4394,
-      "unique_count": 38,
-      "missing_pct": 99.14,
+      "non_null_count": 40,
+      "null_count": 4069,
+      "unique_count": 40,
+      "missing_pct": 99.03,
       "cardinality": "low",
-      "quality_score": 0.603
-    },
-    "selling_proposition": {
-      "dtype": "object",
-      "non_null_count": 3501,
-      "null_count": 931,
-      "unique_count": 76,
-      "missing_pct": 21.01,
-      "cardinality": "low",
-      "quality_score": 0.916
+      "quality_score": 0.604
     },
     "price": {
       "dtype": "object",
-      "non_null_count": 4432,
+      "non_null_count": 4109,
       "null_count": 0,
-      "unique_count": 987,
+      "unique_count": 1022,
       "missing_pct": 0.0,
-      "most_common": "$10.99",
-      "most_common_freq": 44,
-      "avg_length": 5.35,
+      "most_common": "$1.70",
+      "most_common_freq": 125,
+      "avg_length": 5.25,
       "min_length": 5,
       "max_length": 7,
       "cardinality": "medium",
@@ -76,69 +65,47 @@
     },
     "discount": {
       "dtype": "object",
-      "non_null_count": 2799,
-      "null_count": 1633,
-      "unique_count": 73,
-      "missing_pct": 36.85,
+      "non_null_count": 1373,
+      "null_count": 2736,
+      "unique_count": 77,
+      "missing_pct": 66.59,
       "cardinality": "low",
-      "quality_score": 0.853
+      "quality_score": 0.734
     },
-    "color-count": {
-      "dtype": "float64",
-      "non_null_count": 1091,
-      "null_count": 3341,
-      "unique_count": 14,
-      "missing_pct": 75.38,
-      "mean": 6.086159486709441,
-      "std": 2.3605902325690256,
-      "min": 4.0,
-      "max": 19.0,
-      "median": 5.0,
-      "q25": 4.0,
-      "q75": 7.0,
+    "selling_proposition": {
+      "dtype": "object",
+      "non_null_count": 2874,
+      "null_count": 1235,
+      "unique_count": 58,
+      "missing_pct": 30.06,
       "cardinality": "low",
-      "skewness": 1.387,
-      "quality_score": 0.698,
-      "outliers": {
-        "count": 39,
-        "percentage": 0.88,
-        "lower_bound": -0.5,
-        "upper_bound": 11.5,
-        "Q1": 4.0,
-        "Q3": 7.0,
-        "IQR": 3.0
-      }
+      "quality_score": 0.88
     },
     "goods-title-link": {
       "dtype": "object",
-      "non_null_count": 4394,
-      "null_count": 38,
-      "unique_count": 4269,
-      "missing_pct": 0.86,
-      "cardinality": "unique",
-      "quality_score": 0.997
+      "non_null_count": 4069,
+      "null_count": 40,
+      "unique_count": 3684,
+      "missing_pct": 0.97,
+      "cardinality": "high",
+      "quality_score": 0.996
     }
   },
   "recommendations": [
-    "CRITICAL: >70% missing in 3 column(s): goods-title-link--jump, goods-title-link--jump href, color-count",
-    "HIGH: Remove 18 duplicate rows (0.4%).",
-    "HIGH: Handle 1 column(s) with 30-70% missing: discount",
-    "MEDIUM: Impute 1 column(s) with 10-30% missing: selling_proposition",
-    "MEDIUM: Review 39 outlier value(s); consider capping or removal."
+    "CRITICAL: >70% missing in 2 column(s): goods-title-link--jump, goods-title-link--jump href",
+    "HIGH: Remove 179 duplicate rows (4.4%).",
+    "HIGH: Handle 2 column(s) with 30-70% missing: discount, selling_proposition"
   ],
-  "timestamp": "2025-11-25T21:10:07.427938",
+  "timestamp": "2025-11-29T00:00:56.225182",
   "cardinality_analysis": {
     "goods-title-link--jump": "low",
     "goods-title-link--jump href": "low",
-    "selling_proposition": "low",
     "price": "medium",
     "discount": "low",
-    "color-count": "low",
-    "goods-title-link": "unique"
+    "selling_proposition": "low",
+    "goods-title-link": "high"
   },
-  "skewness_analysis": {
-    "color-count": 1.387
-  },
+  "skewness_analysis": {},
   "pattern_analysis": {
     "price": {
       "top_patterns": {
@@ -155,25 +122,14 @@
   },
   "consistency_issues": {},
   "column_quality_scores": {
-    "goods-title-link--jump": 0.603,
-    "goods-title-link--jump href": 0.603,
-    "selling_proposition": 0.916,
+    "goods-title-link--jump": 0.604,
+    "goods-title-link--jump href": 0.604,
     "price": 1.0,
-    "discount": 0.853,
-    "color-count": 0.698,
-    "goods-title-link": 0.997
+    "discount": 0.734,
+    "selling_proposition": 0.88,
+    "goods-title-link": 0.996
   },
-  "outlier_details": {
-    "color-count": {
-      "count": 39,
-      "percentage": 0.88,
-      "lower_bound": -0.5,
-      "upper_bound": 11.5,
-      "Q1": 4.0,
-      "Q3": 7.0,
-      "IQR": 3.0
-    }
-  },
+  "outlier_details": {},
   "proposed_actions": [
     {
       "column": "goods-title-link--jump",
@@ -186,25 +142,16 @@
       "reason": "missing>70%"
     },
     {
-      "column": "selling_proposition",
-      "action": "impute",
-      "strategy": "simple",
-      "reason": "missing 10\u201330%"
-    },
-    {
       "column": "discount",
       "action": "impute",
       "strategy": "advanced",
       "reason": "missing 30\u201370%"
     },
     {
-      "column": "color-count",
-      "action": "drop_column",
-      "reason": "missing>70%"
-    },
-    {
-      "column": "goods-title-link",
-      "action": "flag_id"
+      "column": "selling_proposition",
+      "action": "impute",
+      "strategy": "advanced",
+      "reason": "missing 30\u201370%"
     }
   ]
 }
